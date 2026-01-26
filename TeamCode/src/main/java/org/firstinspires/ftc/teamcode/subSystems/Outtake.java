@@ -10,122 +10,173 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 @Configurable
 public class Outtake implements Subsystems {
 
-    private DcMotorEx flywheelMotor;
+    private DcMotorEx flywheelMotor1;
+    private DcMotorEx flywheelMotor2;
     private Servo hoodServo;
     private Servo shootServo;
 
     // ===== TUNABLES =====
-    public static double HOOD_MAX = 0.55;
     public static double HOOD_MIN = 0.0;
+    public static double HOOD_MAX = 0.55;
     public static double hoodManualStep = 0.01;
+
     public static double SHOOTER_ARM_DOWN = 0.0;
-    public static double SHOOTER_ARM_UP = 0.28;
+    public static double SHOOTER_ARM_UP = 0.25;
 
-    private double targetRPM = 0.0;
+    public static double MOTOR_POWER = 0.0;
+
     private boolean flywheelOn = false;
+    private boolean armDown = true;
 
-    public Outtake() {}
+    // ===== DISTANCE → FLYWHEEL POWER (ORIGINAL) =====
+    private final double[] distanceValues = {
+            36, 40, 44, 48, 52, 60, 66, 72,
+            78, 82, 96, 102, 108, 120, 126, 132, 141
+    };
+
+    private final double[] powerValues = {
+            0.505, 0.51, 0.52, 0.52, 0.504, 0.53, 0.57, 0.60,
+            0.62, 0.685, 0.685, 0.69, 0.70, 0.715, 0.72, 0.775, 0.80
+    };
+
+    // ===== DISTANCE → HOOD SERVO =====
+    private final double[] hoodDistanceValues = {
+            36, 40, 44, 52, 60, 66, 72, 82,
+            96, 102, 108, 120, 126, 132, 141
+    };
+
+    private final double[] hoodPositionValues = {
+            0.0, 0.0, 0.0, 0.0,
+            0.09, 0.20, 0.30, 0.48,
+            0.50, 0.55, 0.55, 0.55,
+            0.55, 0.55, 0.55
+    };
 
     @Override
     public void init(HardwareMap hardwareMap) {
-        flywheelMotor = hardwareMap.get(DcMotorEx.class, "flywheelMotor");
-        flywheelMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
-        flywheelMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        flywheelMotor.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.FLOAT);
-        flywheelMotor.setPower(0);
+        flywheelMotor1 = hardwareMap.get(DcMotorEx.class, "flywheelMotor1");
+        flywheelMotor1.setDirection(DcMotorSimple.Direction.FORWARD);
+        flywheelMotor1.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.FLOAT);
+
+        flywheelMotor2 = hardwareMap.get(DcMotorEx.class, "flywheelMotor2");
+        flywheelMotor2.setDirection(DcMotorSimple.Direction.REVERSE);
+        flywheelMotor2.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.FLOAT);
 
         hoodServo = hardwareMap.get(Servo.class, "hoodServo");
         shootServo = hardwareMap.get(Servo.class, "shootServo");
 
-        hoodServo.setPosition(HOOD_MAX);
-        shootServo.setPosition(SHOOTER_ARM_DOWN);
-    }
-
-    // ===== HOOD =====
-    public void manualHoodUp() {
-        hoodServo.setPosition(Math.min(HOOD_MAX, hoodServo.getPosition() + hoodManualStep));
-    }
-
-    public void manualHoodDown() {
-        hoodServo.setPosition(Math.max(HOOD_MIN, hoodServo.getPosition() - hoodManualStep));
-    }
-
-    public void Hooddown(){
-        hoodServo.setPosition(HOOD_MAX);
-    }
-
-    public void Hoodup(){
         hoodServo.setPosition(HOOD_MIN);
+        shootServo.setPosition(SHOOTER_ARM_DOWN);
     }
 
     // ===== SHOOTER ARM =====
     public void shooterArmUp() {
         shootServo.setPosition(SHOOTER_ARM_UP);
+        armDown = false;
     }
 
     public void shooterArmDown() {
         shootServo.setPosition(SHOOTER_ARM_DOWN);
+        armDown = true;
     }
 
     public boolean isArmDown() {
-        return Math.abs(shootServo.getPosition() - SHOOTER_ARM_DOWN) < 0.01;
+        return armDown;
+    }
+
+    // ===== MANUAL HOOD =====
+    public void manualHoodUp() {
+        hoodServo.setPosition(
+                Math.min(hoodServo.getPosition() + hoodManualStep, HOOD_MAX)
+        );
+    }
+
+    public void manualHoodDown() {
+        hoodServo.setPosition(
+                Math.max(hoodServo.getPosition() - hoodManualStep, HOOD_MIN)
+        );
+    }
+
+    // ===== INTERPOLATED FLYWHEEL POWER =====
+    public double calculateShooterPower(double distance) {
+        if (distance <= 0) return 0;
+
+        for (int i = 0; i < distanceValues.length - 1; i++) {
+            if (distance >= distanceValues[i] &&
+                    distance <= distanceValues[i + 1]) {
+
+                double ratio =
+                        (distance - distanceValues[i]) /
+                                (distanceValues[i + 1] - distanceValues[i]);
+
+                return powerValues[i] +
+                        ratio * (powerValues[i + 1] - powerValues[i]);
+            }
+        }
+
+        if (distance < distanceValues[0]) return powerValues[0];
+        return powerValues[powerValues.length - 1];
+    }
+
+    // ===== INTERPOLATED HOOD =====
+    public double calculateHoodPosition(double distance) {
+        if (distance <= hoodDistanceValues[0])
+            return hoodPositionValues[0];
+
+        for (int i = 0; i < hoodDistanceValues.length - 1; i++) {
+            if (distance >= hoodDistanceValues[i] &&
+                    distance <= hoodDistanceValues[i + 1]) {
+
+                double ratio =
+                        (distance - hoodDistanceValues[i]) /
+                                (hoodDistanceValues[i + 1] - hoodDistanceValues[i]);
+
+                return hoodPositionValues[i] +
+                        ratio * (hoodPositionValues[i + 1] - hoodPositionValues[i]);
+            }
+        }
+        return hoodPositionValues[hoodPositionValues.length - 1];
+    }
+
+    // ===== AUTO SET FROM DISTANCE =====
+    public void setDistance(double distance) {
+        MOTOR_POWER = calculateShooterPower(distance);
+        hoodServo.setPosition(calculateHoodPosition(distance));
     }
 
     // ===== FLYWHEEL =====
-    public void setTargetRPM(double rpm) {
-        targetRPM = rpm;
-    }
-
     public void enableFlywheel() {
         flywheelOn = true;
     }
 
     public void disableFlywheel() {
         flywheelOn = false;
-        flywheelMotor.setPower(0);
+        flywheelMotor1.setPower(0);
+        flywheelMotor2.setPower(0);
     }
 
-//    public void updateFlywheel() {
-//        if (!flywheelOn) {
-//            flywheelMotor.setPower(0);
-//            return;
-//        }
-//        double power = targetRPM / 2000.0; // scale factor, tune for your motor
-//        power = Math.max(0.0, Math.min(1.0, power));
-//        flywheelMotor.setPower(power);
-//    }
-
-    public void updateFlywheel() {//test
+    public void updateFlywheel() {
         if (!flywheelOn) {
-            flywheelMotor.setPower(0);
+            flywheelMotor1.setPower(0);
+            flywheelMotor2.setPower(0);
             return;
         }
-        double power = 1;
-        flywheelMotor.setPower(power);
-//    }
+        flywheelMotor1.setPower(MOTOR_POWER);
+        flywheelMotor2.setPower(MOTOR_POWER);
     }
-
 
     // ===== TELEMETRY =====
     public void addTelemetry(Telemetry telemetry) {
-        telemetry.addData("Hood Pos", hoodServo.getPosition());
-        telemetry.addData("Shooter Arm Pos", shootServo.getPosition());
-        telemetry.addData("Flywheel Power", flywheelMotor.getPower());
-        telemetry.addData("Target RPM", targetRPM);
         telemetry.addData("Flywheel On", flywheelOn);
+        telemetry.addData("Motor Power", MOTOR_POWER);
+        telemetry.addData("Hood Pos", hoodServo.getPosition());
+        telemetry.addData("Arm Down", armDown);
     }
 
     @Override
     public void stop() {
-        flywheelMotor.setPower(0);
-        shootServo.setPosition(SHOOTER_ARM_DOWN);
-    }
-    public void shooterOn() {
-        flywheelMotor.setPower(0.67);
-        shootServo.setPosition(SHOOTER_ARM_DOWN);
-    }
-    public void shooterOnshort() {
-        flywheelMotor.setPower(0.44);
+        disableFlywheel();
+        hoodServo.setPosition(HOOD_MIN);
         shootServo.setPosition(SHOOTER_ARM_DOWN);
     }
 }

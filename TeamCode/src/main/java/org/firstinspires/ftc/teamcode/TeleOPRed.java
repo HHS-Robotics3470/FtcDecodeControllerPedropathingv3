@@ -1,4 +1,3 @@
-
 package org.firstinspires.ftc.teamcode;
 
 import com.bylazar.configurables.annotations.Configurable;
@@ -25,23 +24,25 @@ public class TeleOPRed extends OpMode {
         spindexer = new Spindexer(); spindexer.init(hardwareMap);
         shooter = new Outtake(); shooter.init(hardwareMap);
         turret = new Turret(); turret.init(hardwareMap);
-        vision = new Vision(); vision.init(hardwareMap); vision.setTargetId(24);
+        vision = new Vision(); vision.init(hardwareMap);
+        vision.setTargetId(24);
         color = new CSensor(); color.init(hardwareMap);
     }
 
     @Override
     public void loop() {
-        vision.update();
+        vision.updateVision();
         drive.driveRobot(gamepad1);
 
+        // Turret auto-aim
         turret.update(vision.getTX());
 
-        // Intake control
+        // ===== INTAKE =====
         if (gamepad1.a) intake.intakeForwards();
         else if (gamepad1.b) intake.intakeReverse();
         else intake.stop();
 
-        // Shooter Arm control
+        // ===== SHOOTER ARM =====
         if (spindexer.isInOuttake()) {
             if (gamepad1.y) shooter.shooterArmUp();
             else shooter.shooterArmDown();
@@ -49,41 +50,46 @@ public class TeleOPRed extends OpMode {
             shooter.shooterArmDown();
         }
 
-        // Spindexer control
+        // ===== SPINDEXER =====
         if (shooter.isArmDown()) {
             if (gamepad2.a) spindexer.moveToHold(1);
             if (gamepad2.x) spindexer.moveToHold(2);
             if (gamepad2.b) spindexer.moveToHold(3);
+
             if (gamepad2.dpad_down) spindexer.moveHoldToOuttake(1);
             if (gamepad2.dpad_left) spindexer.moveHoldToOuttake(2);
             if (gamepad2.dpad_right) spindexer.moveHoldToOuttake(3);
         }
 
+        // ===== MANUAL HOOD OVERRIDE =====
         if (gamepad1.dpad_down) shooter.manualHoodUp();
         else if (gamepad1.dpad_up) shooter.manualHoodDown();
 
-        // Flywheel toggle
+        // ===== SHOOTING (INTERPOLATED) =====
         if (gamepad1.right_trigger > 0.1) {
-            double distance = 0.6 * vision.getDistanceArea() + 0.4 * vision.getDistanceTrig();
-            shooter.setTargetRPM(computeRPMForDistance(distance));
+            double distance = vision.getDistance(); // inches
+            shooter.setDistance(distance);          // power + hood
             shooter.enableFlywheel();
-        } else if (gamepad1.left_trigger > 0.1) {
+        }
+        else if (gamepad1.left_trigger > 0.1) {
             shooter.disableFlywheel();
         }
 
         shooter.updateFlywheel();
 
-        // Telemetry
-        telemetry.addLine("Outtake");
+        // ===== TELEMETRY =====
+        telemetry.addLine("=== OUTTAKE ===");
         shooter.addTelemetry(telemetry);
-        telemetry.addLine("Spindexer Pos: " + spindexer.getCurrentPosition());
-        telemetry.addLine("Turret");
-        turret.addTelemetry(telemetry);
-        telemetry.update();
-    }
 
-    private double computeRPMForDistance(double distance) {
-        return 650 + 13.8 * distance; // tune this linear mapping
+        telemetry.addData("Spindexer Pos", spindexer.getCurrentPosition());
+
+        telemetry.addLine("=== TURRET ===");
+        turret.addTelemetry(telemetry);
+
+        telemetry.addLine("=== VISION ===");
+        vision.addTelemetry(telemetry);
+
+        telemetry.update();
     }
 
     @Override
