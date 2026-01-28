@@ -25,7 +25,7 @@ public class TeleOPBlue extends OpMode {
         shooter = new Outtake(); shooter.init(hardwareMap);
         turret = new Turret(); turret.init(hardwareMap);
         vision = new Vision(); vision.init(hardwareMap);
-        vision.setTargetId(20);
+        vision.setValidIds(20); // ONLY track tag 20
         color = new CSensor(); color.init(hardwareMap);
     }
 
@@ -34,23 +34,17 @@ public class TeleOPBlue extends OpMode {
         vision.updateVision();
         drive.driveRobot(gamepad1);
 
-        // Turret auto-aim
         turret.update(vision.getTX());
 
-        // ===== INTAKE =====
         if (gamepad1.a) intake.intakeForwards();
         else if (gamepad1.b) intake.intakeReverse();
         else intake.stop();
 
-        // ===== SHOOTER ARM =====
         if (spindexer.isInOuttake()) {
             if (gamepad1.y) shooter.shooterArmUp();
             else shooter.shooterArmDown();
-        } else {
-            shooter.shooterArmDown();
-        }
+        } else shooter.shooterArmDown();
 
-        // ===== SPINDEXER =====
         if (shooter.isArmDown()) {
             if (gamepad2.a) spindexer.moveToHold(1);
             if (gamepad2.x) spindexer.moveToHold(2);
@@ -61,34 +55,25 @@ public class TeleOPBlue extends OpMode {
             if (gamepad2.dpad_right) spindexer.moveHoldToOuttake(3);
         }
 
-        // ===== MANUAL HOOD OVERRIDE =====
         if (gamepad1.dpad_down) shooter.manualHoodUp();
         else if (gamepad1.dpad_up) shooter.manualHoodDown();
 
-        // ===== SHOOTING (INTERPOLATED) =====
         if (gamepad1.right_trigger > 0.1) {
-            double distance = vision.getDistance(); // inches
-            shooter.setDistance(distance);          // power + hood
+            shooter.setDistance(vision.getDistance());
             shooter.enableFlywheel();
-        }
-        else if (gamepad1.left_trigger > 0.1) {
+        } else if (gamepad1.left_trigger > 0.1) {
             shooter.disableFlywheel();
         }
 
         shooter.updateFlywheel();
 
-        // ===== TELEMETRY =====
         telemetry.addLine("=== OUTTAKE ===");
         shooter.addTelemetry(telemetry);
-
         telemetry.addData("Spindexer Pos", spindexer.getCurrentPosition());
-
         telemetry.addLine("=== TURRET ===");
         turret.addTelemetry(telemetry);
-
         telemetry.addLine("=== VISION ===");
         vision.addTelemetry(telemetry);
-
         telemetry.update();
     }
 
