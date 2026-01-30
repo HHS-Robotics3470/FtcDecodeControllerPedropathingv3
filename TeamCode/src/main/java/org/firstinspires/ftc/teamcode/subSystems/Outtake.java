@@ -27,31 +27,24 @@ public class Outtake implements Subsystems {
 
     private boolean flywheelOn = false;
     private boolean armDown = true;
-
-    // ===== DISTANCE → FLYWHEEL POWER (ORIGINAL) =====
     private final double[] distanceValues = {
             36, 40, 44, 48, 52, 60, 66, 72,
             78, 82, 96, 102, 108, 120, 126, 132, 141
     };
-
     private final double[] powerValues = {
-            0.505, 0.51, 0.52, 0.52, 0.504, 0.53, 0.57, 0.60,
-            0.62, 0.685, 0.685, 0.69, 0.70, 0.715, 0.72, 0.775, 0.80
+            0.63, 0.64, 0.65, 0.655, 0.66, 0.68, 0.69, 0.75,
+            0.77, 0.775, 0.76, 0.778, 0.78, 0.79, 0.83, 0.865, 0.90
     };
-
-    // ===== DISTANCE → HOOD SERVO =====
     private final double[] hoodDistanceValues = {
             36, 40, 44, 52, 60, 66, 72, 82,
             96, 102, 108, 120, 126, 132, 141
     };
-
     private final double[] hoodPositionValues = {
             0.0, 0.0, 0.0, 0.0,
             0.09, 0.20, 0.30, 0.48,
             0.50, 0.55, 0.55, 0.55,
             0.55, 0.55, 0.55
     };
-
     @Override
     public void init(HardwareMap hardwareMap) {
         flywheelMotor1 = hardwareMap.get(DcMotorEx.class, "flywheelMotor1");
