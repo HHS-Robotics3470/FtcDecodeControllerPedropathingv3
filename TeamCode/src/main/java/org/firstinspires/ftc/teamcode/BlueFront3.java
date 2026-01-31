@@ -29,7 +29,7 @@ public class BlueFront3 extends OpMode {
     private long timer = 0;
 
     // ===== TIMING CONSTANTS =====
-    private static final long FLYWHEEL_SPINUP_TIME = 3000;
+    private static final long FLYWHEEL_SPINUP_TIME = 4000;
     private static final long FEED_TO_SHOOT_DELAY = 600;
     private static final long ARM_UP_TIME = 150;
     private static final long POST_DOWN_DELAY = 0;

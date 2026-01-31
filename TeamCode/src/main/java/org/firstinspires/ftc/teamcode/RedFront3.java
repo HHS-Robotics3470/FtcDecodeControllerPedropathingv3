@@ -30,7 +30,7 @@ public class RedFront3 extends OpMode {
     private long timer = 0;
 
     // ===== TIMING CONSTANTS =====
-    private static final long FLYWHEEL_SPINUP_TIME = 3000;
+    private static final long FLYWHEEL_SPINUP_TIME = 4000;
     private static final long FEED_TO_SHOOT_DELAY = 600;
     private static final long ARM_UP_TIME = 150;
     private static final long POST_DOWN_DELAY = 0;
@@ -202,36 +202,37 @@ public class RedFront3 extends OpMode {
         public PathChain toSee, toShoot, toPark;
 
         public Paths(Follower follower) {
-            // Move from start to the first point (see the target)
+            // Move from start to see the target
             toSee = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(124, 123),  // RED start
-                            new Pose(88, 84)))   // mirrored "to see" point
+                            new Pose(124, 123),
+                            new Pose(88, 84)))
                     .setLinearHeadingInterpolation(
-                            Math.toRadians(36),  // constant heading along path
-                            Math.toRadians(36))
+                            Math.toRadians(95),
+                            Math.toRadians(95))
                     .build();
 
             // Move to shooting position
             toShoot = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(88, 84),    // start of shooting segment
-                            new Pose(72, 56)))   // shooting target
+                            new Pose(124, 123),
+                            new Pose(88, 84)))
                     .setLinearHeadingInterpolation(
-                            Math.toRadians(45),  // same style as Blue
-                            Math.toRadians(45))
+                            Math.toRadians(30),
+                            Math.toRadians(30))
                     .build();
 
             // Move to park
             toPark = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(72, 56),    // start of park path
-                            new Pose(56, 40)))   // mirrored park point
+                            new Pose(88, 123),
+                            new Pose(88, 65)))
                     .setLinearHeadingInterpolation(
-                            Math.toRadians(90),  // constant heading for park
+                            Math.toRadians(90),  // face top of field
                             Math.toRadians(90))
                     .build();
         }
     }
+
 
 }
