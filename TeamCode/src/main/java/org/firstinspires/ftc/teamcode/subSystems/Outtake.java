@@ -181,7 +181,6 @@ public class Outtake implements Subsystems {
         hoodServo.setPosition(HOOD_MIN);
         shootServo.setPosition(SHOOTER_ARM_DOWN);
     }
-
     public void autoShootPreload() {
         hoodServo.setPosition(HOOD_MIN);
         flywheelMotor1.setPower(0.63);
