@@ -13,9 +13,10 @@ import com.pedropathing.paths.PathChain;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+
 @Configurable
-@Autonomous(name = "Blue Front 3", group = "Autonomous")
-public class BlueFront3 extends OpMode {
+@Autonomous(name = "Red Front 3", group = "Autonomous")
+public class RedFront3 extends OpMode {
 
     private Vision vision;
     private Outtake outtake;
@@ -47,7 +48,8 @@ public class BlueFront3 extends OpMode {
         spindexer.init(hardwareMap);
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(21, 123, Math.toRadians(144)));
+        // RED start pose (mirrored from Blue)
+        follower.setStartingPose(new Pose(124, 123, Math.toRadians(36)));
 
         paths = new Paths(follower);
 
@@ -200,32 +202,36 @@ public class BlueFront3 extends OpMode {
         public PathChain toSee, toShoot, toPark;
 
         public Paths(Follower follower) {
+            // Move from start to the first point (see the target)
             toSee = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(21, 123),
-                            new Pose(56, 84)))
+                            new Pose(124, 123),  // RED start
+                            new Pose(88, 84)))   // mirrored "to see" point
                     .setLinearHeadingInterpolation(
-                            Math.toRadians(85),
-                            Math.toRadians(85))
+                            Math.toRadians(36),  // constant heading along path
+                            Math.toRadians(36))
                     .build();
 
+            // Move to shooting position
             toShoot = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(21, 123),
-                            new Pose(56, 84)))
+                            new Pose(88, 84),    // start of shooting segment
+                            new Pose(72, 56)))   // shooting target
                     .setLinearHeadingInterpolation(
-                            Math.toRadians(150),
-                            Math.toRadians(150))
+                            Math.toRadians(45),  // same style as Blue
+                            Math.toRadians(45))
                     .build();
 
+            // Move to park
             toPark = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(56, 123),
-                            new Pose(56, 65)))
+                            new Pose(72, 56),    // start of park path
+                            new Pose(56, 40)))   // mirrored park point
                     .setLinearHeadingInterpolation(
-                            Math.toRadians(90),
+                            Math.toRadians(90),  // constant heading for park
                             Math.toRadians(90))
                     .build();
         }
     }
+
 }

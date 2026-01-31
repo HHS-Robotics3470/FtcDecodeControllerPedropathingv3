@@ -32,8 +32,8 @@ public class Outtake implements Subsystems {
             78, 82, 96, 102, 108, 120, 126, 132, 141
     };
     private final double[] powerValues = {
-            0.63, 0.64, 0.65, 0.655, 0.66, 0.68, 0.69, 0.75,
-            0.77, 0.775, 0.76, 0.778, 0.78, 0.79, 0.83, 0.865, 0.90
+            0.63, 0.64, 0.65, 0.655, 0.66, 0.68, 0.69, 0.70,
+            0.77, 0.725, 0.76, 0.778, 0.78, 0.79, 0.83, 0.85, 0.90
     };
     private final double[] hoodDistanceValues = {
             36, 40, 44, 52, 60, 66, 72, 82,
@@ -72,6 +72,15 @@ public class Outtake implements Subsystems {
         shootServo.setPosition(SHOOTER_ARM_DOWN);
         armDown = true;
     }
+
+    public void autoShooterArmDown() {
+        shootServo.setPosition(SHOOTER_ARM_DOWN);
+    }
+
+    public void autoShooterArmUp() {
+        shootServo.setPosition(SHOOTER_ARM_UP);
+    }
+
 
     public boolean isArmDown() {
         return armDown;
@@ -172,4 +181,11 @@ public class Outtake implements Subsystems {
         hoodServo.setPosition(HOOD_MIN);
         shootServo.setPosition(SHOOTER_ARM_DOWN);
     }
+
+    public void autoShootPreload() {
+        hoodServo.setPosition(HOOD_MIN);
+        flywheelMotor1.setPower(0.7);
+        flywheelMotor2.setPower(0.7);
+    }
+
 }
