@@ -30,7 +30,6 @@ public class RedFront3 extends OpMode {
     private long timer = 0;
 
     // ===== TIMING CONSTANTS =====
-
     private static final long FLYWHEEL_SPINUP_TIME = 4000;
     private static final long FEED_TO_SHOOT_DELAY = 600;
     private static final long ARM_UP_TIME = 150;
