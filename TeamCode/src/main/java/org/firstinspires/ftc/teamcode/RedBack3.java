@@ -13,9 +13,10 @@ import com.pedropathing.paths.PathChain;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+
 @Configurable
-@Autonomous(name = "Blue Front 3", group = "Autonomous")
-public class BlueFront3 extends OpMode {
+@Autonomous(name = "Red Back 3", group = "Autonomous")
+public class RedBack3 extends OpMode {
 
     private Vision vision;
     private Outtake outtake;
@@ -28,9 +29,8 @@ public class BlueFront3 extends OpMode {
     private int patternId = -1;
     private long timer = 0;
 
-    // ===== TIMING CONSTANTS =====
-    private static final long FLYWHEEL_SPINUP_TIME = 4000;
-    private static final long FEED_TO_SHOOT_DELAY = 700;
+    private static final long FLYWHEEL_SPINUP_TIME = 5000;
+    private static final long FEED_TO_SHOOT_DELAY = 600;
     private static final long ARM_UP_TIME = 150;
     private static final long POST_DOWN_DELAY = 0;
 
@@ -47,7 +47,13 @@ public class BlueFront3 extends OpMode {
         spindexer.init(hardwareMap);
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(21, 123, Math.toRadians(144)));
+
+        // MIRRORED START (from BlueBack3)
+        follower.setStartingPose(new Pose(
+                93,                     // 144 - 51
+                123,
+                Math.toRadians(90)      // π - 90° = 90°
+        ));
 
         paths = new Paths(follower);
 
@@ -83,6 +89,7 @@ public class BlueFront3 extends OpMode {
         telemetry.addData("Pattern ID", patternId);
         telemetry.addData("PathState", pathState);
         telemetry.addData("ShootState", shootState);
+        telemetry.addData("Heading (deg)", Math.toDegrees(follower.getPose().getHeading()));
         telemetry.update();
     }
 
@@ -110,7 +117,7 @@ public class BlueFront3 extends OpMode {
                 break;
 
             case 4:
-                break; // shooting FSM
+                break;
 
             case 5:
                 follower.followPath(paths.toPark);
@@ -129,16 +136,14 @@ public class BlueFront3 extends OpMode {
     // ================= SHOOTING FSM =================
     private void runShootingSequence(int[] ballOrder) {
 
-        // INIT
         if (shootState == -1) {
-            outtake.autoShootPreload();     // flywheel ON
-            outtake.autoShooterArmDown();   // lever starts DOWN
+            outtake.autoShootFarPreload();
+            outtake.autoShooterArmDown();
             timer = System.currentTimeMillis();
             shootState = 0;
             return;
         }
 
-        // FLYWHEEL SPIN-UP
         if (shootState == 0) {
             if (System.currentTimeMillis() - timer >= FLYWHEEL_SPINUP_TIME) {
                 shootState = 1;
@@ -148,7 +153,7 @@ public class BlueFront3 extends OpMode {
         }
 
         int ringIndex = (shootState - 1) / 4;
-        int phase     = (shootState - 1) % 4;
+        int phase = (shootState - 1) % 4;
 
         if (ringIndex >= ballOrder.length) {
             outtake.disableFlywheel();
@@ -158,7 +163,6 @@ public class BlueFront3 extends OpMode {
             return;
         }
 
-        // PHASE 0: FEED RING
         if (phase == 0) {
             spindexer.moveHoldToOuttake(ballOrder[ringIndex]);
             timer = System.currentTimeMillis();
@@ -166,7 +170,6 @@ public class BlueFront3 extends OpMode {
             return;
         }
 
-        // PHASE 1: ARM UP (SHOOT)
         if (phase == 1) {
             if (System.currentTimeMillis() - timer >= FEED_TO_SHOOT_DELAY) {
                 outtake.autoShooterArmUp();
@@ -176,7 +179,6 @@ public class BlueFront3 extends OpMode {
             return;
         }
 
-        // PHASE 2: ARM DOWN
         if (phase == 2) {
             if (System.currentTimeMillis() - timer >= ARM_UP_TIME) {
                 outtake.autoShooterArmDown();
@@ -186,10 +188,8 @@ public class BlueFront3 extends OpMode {
             return;
         }
 
-        // PHASE 3: POST-DOWN BREAK
         if (phase == 3) {
             if (System.currentTimeMillis() - timer >= POST_DOWN_DELAY) {
-                timer = System.currentTimeMillis();
                 shootState++;
             }
         }
@@ -200,30 +200,34 @@ public class BlueFront3 extends OpMode {
         public PathChain toSee, toShoot, toPark;
 
         public Paths(Follower follower) {
+
+            // Step 1: small forward move
             toSee = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(21, 123),
-                            new Pose(56, 84)))
+                            new Pose(93, 123),
+                            new Pose(92, 124)))
                     .setLinearHeadingInterpolation(
-                            Math.toRadians(85),
-                            Math.toRadians(85))
+                            Math.toRadians(93),   // mirror of 87
+                            Math.toRadians(95))   // mirror of 85
                     .build();
 
+            // Step 2: rotate + tiny slide
             toShoot = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(21, 123),
-                            new Pose(56, 84)))
+                            new Pose(93, 125),
+                            new Pose(92, 126)))
                     .setLinearHeadingInterpolation(
-                            Math.toRadians(150),
-                            Math.toRadians(150))
+                            Math.toRadians(95),
+                            Math.toRadians(70))   // mirror of 120
                     .build();
 
+            // Step 3: park forward
             toPark = follower.pathBuilder()
                     .addPath(new BezierLine(
-                            new Pose(56, 123),
-                            new Pose(56, 65)))
+                            new Pose(93, 126),
+                            new Pose(92, 145)))
                     .setLinearHeadingInterpolation(
-                            Math.toRadians(90),
+                            Math.toRadians(60),
                             Math.toRadians(90))
                     .build();
         }

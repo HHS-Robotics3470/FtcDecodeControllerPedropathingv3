@@ -22,7 +22,6 @@ public class Outtake implements Subsystems {
 
     public static double SHOOTER_ARM_DOWN = 0.0;
     public static double SHOOTER_ARM_UP = 0.25;
-
     public static double MOTOR_POWER = 0.0;
 
     private boolean flywheelOn = false;
@@ -32,16 +31,16 @@ public class Outtake implements Subsystems {
             78, 82, 96, 102, 108, 120, 126, 132, 141
     };
     private final double[] powerValues = {
-            0.63, 0.64, 0.65, 0.655, 0.66, 0.68, 0.69, 0.70,
-            0.77, 0.725, 0.76, 0.778, 0.78, 0.79, 0.83, 0.85, 0.90
+            0.63, 0.64, 0.65, 0.655, 0.66, 0.68, 0.687, 0.72,
+            0.76, 0.725, 0.76, 0.778, 0.78, 0.79, 0.8, 0.815                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            , 0.9
     };
     private final double[] hoodDistanceValues = {
             36, 40, 44, 52, 60, 66, 72, 82,
             96, 102, 108, 120, 126, 132, 141
     };
     private final double[] hoodPositionValues = {
-            0.0, 0.0, 0.0, 0.0,
-            0.09, 0.20, 0.30, 0.48,
+            0.0, 0.0, 0.0, 0.09,
+            0.15, 0.20, 0.30, 0.48,
             0.50, 0.55, 0.55, 0.55,
             0.55, 0.55, 0.55
     };
@@ -139,13 +138,11 @@ public class Outtake implements Subsystems {
         }
         return hoodPositionValues[hoodPositionValues.length - 1];
     }
-
     // ===== AUTO SET FROM DISTANCE =====
     public void setDistance(double distance) {
         MOTOR_POWER = calculateShooterPower(distance);
         hoodServo.setPosition(calculateHoodPosition(distance));
     }
-
     // ===== FLYWHEEL =====
     public void enableFlywheel() {
         flywheelOn = true;
@@ -156,7 +153,6 @@ public class Outtake implements Subsystems {
         flywheelMotor1.setPower(0);
         flywheelMotor2.setPower(0);
     }
-
     public void updateFlywheel() {
         if (!flywheelOn) {
             flywheelMotor1.setPower(0);
@@ -166,7 +162,6 @@ public class Outtake implements Subsystems {
         flywheelMotor1.setPower(MOTOR_POWER);
         flywheelMotor2.setPower(MOTOR_POWER);
     }
-
     // ===== TELEMETRY =====
     public void addTelemetry(Telemetry telemetry) {
         telemetry.addData("Flywheel On", flywheelOn);
@@ -174,7 +169,6 @@ public class Outtake implements Subsystems {
         telemetry.addData("Hood Pos", hoodServo.getPosition());
         telemetry.addData("Arm Down", armDown);
     }
-
     @Override
     public void stop() {
         disableFlywheel();
@@ -183,8 +177,12 @@ public class Outtake implements Subsystems {
     }
     public void autoShootPreload() {
         hoodServo.setPosition(HOOD_MIN);
-        flywheelMotor1.setPower(0.63);
-        flywheelMotor2.setPower(0.63);
+        flywheelMotor1.setPower(0.66);
+        flywheelMotor2.setPower(0.66);
     }
-
+    public void autoShootFarPreload() {
+        hoodServo.setPosition(HOOD_MAX);
+        flywheelMotor1.setPower(0.82);
+        flywheelMotor2.setPower(0.82);
+    }
 }

@@ -74,6 +74,10 @@ public class TeleOPBlue extends OpMode {
         turret.addTelemetry(telemetry);
         telemetry.addLine("=== VISION ===");
         vision.addTelemetry(telemetry);
+//        telemetry.addData("Color", color.getColor());
+//        telemetry.addData("R", color.getRed());
+//        telemetry.addData("G", color.getGreen());
+//        telemetry.addData("B", color.getBlue());
         telemetry.update();
     }
 

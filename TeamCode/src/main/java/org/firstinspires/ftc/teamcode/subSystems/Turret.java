@@ -13,14 +13,14 @@ public class Turret implements Subsystems {
     private DcMotor aimMotor;
     private Limelight3A limelight;
 
-    public static double kp = 0.013;
+    public static double kp = 0.01;
     public static double ki = 0;
     public static double kd = 0.0004; // derivative term
     public static double kf = 0;
 
-    public static int LEFT_LIMIT = -290;  //730
-    public static int RIGHT_LIMIT = 230;//450
-    public static int DEFAULT_POSITION = -0; //0
+    public static int LEFT_LIMIT = -140;  //730
+    public static int RIGHT_LIMIT = 140;//450
+    public static int DEFAULT_POSITION = 0; //0
 
     // For derivative calculation
     private double lastError = 0;
@@ -33,7 +33,7 @@ public class Turret implements Subsystems {
 
         limelight = hardwareMap.get(Limelight3A.class, "Limelight3A");
         limelight.pipelineSwitch(1);
-        limelight.setPollRateHz(200);
+        limelight.setPollRateHz(250);
         limelight.start();
     }
 
