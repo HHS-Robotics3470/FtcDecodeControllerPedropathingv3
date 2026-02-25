@@ -137,8 +137,6 @@ public class RedBack3 extends OpMode {
     private void runShootingSequence(int[] ballOrder) {
 
         if (shootState == -1) {
-            outtake.autoShootFarPreload();
-            outtake.autoShooterArmDown();
             timer = System.currentTimeMillis();
             shootState = 0;
             return;
@@ -157,14 +155,12 @@ public class RedBack3 extends OpMode {
 
         if (ringIndex >= ballOrder.length) {
             outtake.disableFlywheel();
-            spindexer.moveToHold(1);
             shootState = -1;
             pathState = 5;
             return;
         }
 
         if (phase == 0) {
-            spindexer.moveHoldToOuttake(ballOrder[ringIndex]);
             timer = System.currentTimeMillis();
             shootState++;
             return;
@@ -172,7 +168,7 @@ public class RedBack3 extends OpMode {
 
         if (phase == 1) {
             if (System.currentTimeMillis() - timer >= FEED_TO_SHOOT_DELAY) {
-                outtake.autoShooterArmUp();
+
                 timer = System.currentTimeMillis();
                 shootState++;
             }
@@ -181,7 +177,6 @@ public class RedBack3 extends OpMode {
 
         if (phase == 2) {
             if (System.currentTimeMillis() - timer >= ARM_UP_TIME) {
-                outtake.autoShooterArmDown();
                 timer = System.currentTimeMillis();
                 shootState++;
             }
@@ -218,7 +213,7 @@ public class RedBack3 extends OpMode {
                             new Pose(92, 126)))
                     .setLinearHeadingInterpolation(
                             Math.toRadians(95),
-                            Math.toRadians(70))   // mirror of 120
+                            Math.toRadians(57))   // mirror of 120
                     .build();
 
             // Step 3: park forward
@@ -227,7 +222,7 @@ public class RedBack3 extends OpMode {
                             new Pose(93, 126),
                             new Pose(92, 145)))
                     .setLinearHeadingInterpolation(
-                            Math.toRadians(60),
+                            Math.toRadians(57),
                             Math.toRadians(90))
                     .build();
         }

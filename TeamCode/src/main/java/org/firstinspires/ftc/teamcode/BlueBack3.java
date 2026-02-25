@@ -46,8 +46,11 @@ public class BlueBack3 extends OpMode {
         spindexer = new Spindexer();
         spindexer.init(hardwareMap);
 
+//      follower = Constants.createFollower(hardwareMap);
+//      follower.setStartingPose(new Pose(51, 123, Math.toRadians(90)));
+
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(51, 123, Math.toRadians(90)));
+        follower.setPose(new Pose(51, 123, Math.toRadians(90)));
 
         paths = new Paths(follower);
 
@@ -58,7 +61,10 @@ public class BlueBack3 extends OpMode {
     @Override
     public void loop() {
         vision.updateVision();
+//      follower.update();
+        follower.updatePose();
         follower.update();
+        PoseStorage.currentPose = follower.getPose();
 
         if (patternId == -1 && vision.getTargetId() != -1) {
             patternId = vision.getTargetId();
@@ -132,8 +138,6 @@ public class BlueBack3 extends OpMode {
     private void runShootingSequence(int[] ballOrder) {
 
         if (shootState == -1) {
-            outtake.autoShootFarPreload();
-            outtake.autoShooterArmDown();
             timer = System.currentTimeMillis();
             shootState = 0;
             return;
@@ -152,14 +156,12 @@ public class BlueBack3 extends OpMode {
 
         if (ringIndex >= ballOrder.length) {
             outtake.disableFlywheel();
-            spindexer.moveToHold(1);
             shootState = -1;
             pathState = 5;
             return;
         }
 
         if (phase == 0) {
-            spindexer.moveHoldToOuttake(ballOrder[ringIndex]);
             timer = System.currentTimeMillis();
             shootState++;
             return;
@@ -167,7 +169,6 @@ public class BlueBack3 extends OpMode {
 
         if (phase == 1) {
             if (System.currentTimeMillis() - timer >= FEED_TO_SHOOT_DELAY) {
-                outtake.autoShooterArmUp();
                 timer = System.currentTimeMillis();
                 shootState++;
             }
@@ -176,7 +177,6 @@ public class BlueBack3 extends OpMode {
 
         if (phase == 2) {
             if (System.currentTimeMillis() - timer >= ARM_UP_TIME) {
-                outtake.autoShooterArmDown();
                 timer = System.currentTimeMillis();
                 shootState++;
             }
@@ -212,7 +212,7 @@ public class BlueBack3 extends OpMode {
                             new Pose(52, 126))) // slight move
                     .setLinearHeadingInterpolation(
                             Math.toRadians(85),
-                            Math.toRadians(120))
+                            Math.toRadians(118))
                     .build();
 
             // Step 3: park forward +16, face 90°
@@ -221,7 +221,7 @@ public class BlueBack3 extends OpMode {
                             new Pose(51, 126),
                             new Pose(52, 145))) // forward
                     .setLinearHeadingInterpolation(
-                            Math.toRadians(120),
+                            Math.toRadians(118),
                             Math.toRadians(90))
                     .build();
         }

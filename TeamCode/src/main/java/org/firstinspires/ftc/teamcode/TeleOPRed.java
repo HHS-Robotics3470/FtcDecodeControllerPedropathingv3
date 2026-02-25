@@ -3,10 +3,11 @@ package org.firstinspires.ftc.teamcode;
 import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+
 import org.firstinspires.ftc.teamcode.subSystems.*;
 
 @Configurable
-@TeleOp(name = "TeleOpRed", group = "Linear OpMode")
+@TeleOp(name="TeleOpRed", group="Linear OpMode")
 public class TeleOPRed extends OpMode {
 
     private Mecnum drive;
@@ -15,7 +16,19 @@ public class TeleOPRed extends OpMode {
     private Outtake shooter;
     private Turret turret;
     private Vision vision;
-    private CSensor color;
+    private CSensor colorSensors;
+
+    // ===== SHOOTING STATE =====
+    private int shootCase = -1;
+    private long shootTimer = 0;
+    private int rapidNextIndex = 0;
+    private boolean singleShot = false;
+    private static final long ARM_UP = 250;
+    private static final long ARM_DOWN = 250;
+
+    // ===== SLOT TRACKING =====
+    private boolean[] slotOccupied = {false, false, false};
+    private String[] slotColor = {"None", "None", "None"};
 
     @Override
     public void init() {
@@ -25,56 +38,145 @@ public class TeleOPRed extends OpMode {
         shooter = new Outtake(); shooter.init(hardwareMap);
         turret = new Turret(); turret.init(hardwareMap);
         vision = new Vision(); vision.init(hardwareMap);
-        vision.setValidIds(24); // ONLY track tag 24
-        color = new CSensor(); color.init(hardwareMap);
+        vision.setValidIds(20);
+
+        colorSensors = new CSensor();
+        colorSensors.init(hardwareMap);
     }
 
     @Override
     public void loop() {
-        vision.updateVision();
         drive.driveRobot(gamepad1);
-
         turret.update(vision.getTX());
 
+        // ===== INTAKE =====
         if (gamepad1.a) intake.intakeForwards();
         else if (gamepad1.b) intake.intakeReverse();
         else intake.stop();
 
-        if (spindexer.isInOuttake()) {
-            if (gamepad1.y) shooter.shooterArmUp();
-            else shooter.shooterArmDown();
-        } else shooter.shooterArmDown();
+        // ===== MANUAL SPINDEXER ROTATION =====
+        if (gamepad2.a) rotateToSlot(1);
+        if (gamepad2.b) rotateToSlot(2);
+        if (gamepad2.x) rotateToSlot(3);
 
-        if (shooter.isArmDown()) {
-            if (gamepad2.a) spindexer.moveToHold(1);
-            if (gamepad2.x) spindexer.moveToHold(2);
-            if (gamepad2.b) spindexer.moveToHold(3);
-
-            if (gamepad2.dpad_down) spindexer.moveHoldToOuttake(1);
-            if (gamepad2.dpad_left) spindexer.moveHoldToOuttake(2);
-            if (gamepad2.dpad_right) spindexer.moveHoldToOuttake(3);
+        // ===== SHOOTING =====
+        if (shootCase == -1) {
+            if (gamepad2.dpad_left) shootColor("Green");
+            if (gamepad2.dpad_right) shootColor("Purple");
+            if (gamepad2.y) shootSlot(rapidNextIndex); // shoot current slot
+            if (gamepad2.dpad_up) startShootAll();
         }
 
-        if (gamepad1.dpad_down) shooter.manualHoodUp();
-        else if (gamepad1.dpad_up) shooter.manualHoodDown();
+        runShootCases();
 
-        if (gamepad1.right_trigger > 0.1) {
-            shooter.setDistance(vision.getDistance());
-            shooter.enableFlywheel();
-        } else if (gamepad1.left_trigger > 0.1) {
-            shooter.disableFlywheel();
-        }
+        // ===== SPINDEXER UPDATE =====
+        spindexer.update();
 
+        // ===== FLYWHEEL CONTROL =====
+        if (gamepad2.right_trigger > 0.1) shooter.enableFlywheel();
+        else if (gamepad2.left_trigger > 0.1) shooter.disableFlywheel();
         shooter.updateFlywheel();
 
-        telemetry.addLine("=== OUTTAKE ===");
-        shooter.addTelemetry(telemetry);
-        telemetry.addData("Spindexer Pos", spindexer.getCurrentPosition());
-        telemetry.addLine("=== TURRET ===");
-        turret.addTelemetry(telemetry);
-        telemetry.addLine("=== VISION ===");
-        vision.addTelemetry(telemetry);
+        // ===== TELEMETRY =====
+        telemetry.addData("Slots", slotOccupied[0] + "," + slotOccupied[1] + "," + slotOccupied[2]);
+        telemetry.addData("Colors", slotColor[0] + "," + slotColor[1] + "," + slotColor[2]);
+        telemetry.addData("ShootCase", shootCase);
+        telemetry.addData("SelectedSlot", rapidNextIndex + 1);
         telemetry.update();
+    }
+
+
+    private int firstEmptySlot() {
+        for (int i = 0; i < 3; i++) if (!slotOccupied[i]) return i + 1;
+        return -1;
+    }
+
+    private void rotateToSlot(int slot) {
+        if (slot >= 1 && slot <= 3) {
+            rapidNextIndex = slot - 1;
+            spindexer.moveToSlot(slot);
+        }
+    }
+
+    private void shootSlot(int slotIndex) {
+        if (slotIndex >= 0 && slotIndex < 3 && slotOccupied[slotIndex]) {
+            rapidNextIndex = slotIndex;
+            shootCase = 0;
+            shootTimer = System.currentTimeMillis();
+            singleShot = true;
+        }
+    }
+
+    private void shootColor(String color) {
+        for (int i = 0; i < 3; i++) {
+            if (slotOccupied[i] && slotColor[i].equals(color)) {
+                rapidNextIndex = i;
+                shootCase = 0;
+                shootTimer = System.currentTimeMillis();
+                singleShot = true;
+                break;
+            }
+        }
+    }
+
+    private void startShootAll() {
+        for (int i = 0; i < 3; i++) {
+            if (slotOccupied[i]) {
+                rapidNextIndex = i;
+                shootCase = 0;
+                shootTimer = System.currentTimeMillis();
+                singleShot = false;
+                break;
+            }
+        }
+    }
+
+    private void runShootCases() {
+        if (shootCase == -1) return;
+
+        long now = System.currentTimeMillis();
+        switch (shootCase) {
+            case 0: // arm up
+                shooter.shooterArmUp();
+                shootTimer = now;
+                shootCase = 1;
+                break;
+
+            case 1: // arm up pause
+                if (now - shootTimer >= ARM_UP) {
+                    shooter.shooterArmDown();
+                    shootTimer = now;
+                    shootCase = 2;
+                }
+                break;
+
+            case 2: // arm down -> feed
+                if (now - shootTimer >= ARM_DOWN) {
+                    shootCase = 3;
+                }
+                break;
+
+            case 3: // wait for spindexer to reach target
+                if (spindexer.atTarget()) {
+                    slotOccupied[rapidNextIndex] = false;
+                    slotColor[rapidNextIndex] = "None";
+
+                    if (!singleShot) {
+                        int next = nextOccupiedSlot(rapidNextIndex);
+                        if (next != -1) {
+                            rapidNextIndex = next;
+                            shootCase = 0;
+                        } else shootCase = -1;
+                    } else shootCase = -1;
+                }
+                break;
+        }
+    }
+
+    private int nextOccupiedSlot(int current) {
+        for (int i = current + 1; i < 3; i++) if (slotOccupied[i]) return i;
+        for (int i = 0; i <= current; i++) if (slotOccupied[i]) return i;
+        return -1;
     }
 
     @Override

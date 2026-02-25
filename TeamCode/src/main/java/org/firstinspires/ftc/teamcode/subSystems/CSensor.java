@@ -5,39 +5,56 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 public class CSensor implements Subsystems {
 
-    private RevColorSensorV3 sensor;
+    private RevColorSensorV3[] sensors = new RevColorSensorV3[3];
 
     @Override
-    public void init(HardwareMap hardwareMap) {
-        sensor = hardwareMap.get(RevColorSensorV3.class, "light_yagami");
-        sensor.enableLed(true);
-    }
+    public void init(HardwareMap hw){
+        sensors[0] = hw.get(RevColorSensorV3.class,"colorSensor1");
+        sensors[1] = hw.get(RevColorSensorV3.class,"colorSensor2");
+        sensors[2] = hw.get(RevColorSensorV3.class,"colorSensor3");
 
-    // Returns "Purple", "Green", or "Other" based on RGB readings
-    public String getColor() {
-        int r = sensor.red();
-        int g = sensor.green();
-        int b = sensor.blue();
-
-        // Purple: 238,166,222
-        if (r > 200 && g > 150 && g < 180 && b > 200) {
-            return "Purple";
-        }
-        // Green: 0,76,51
-        else if (g > 50 && g < 100 && r < 50 && b < 60) {
-            return "Green";
-        }
-        else {
-            return "Other";
+        for(RevColorSensorV3 s : sensors){
+            s.enableLed(true);
         }
     }
-    public int getRed() { return sensor.red(); }
-    public int getGreen() { return sensor.green(); }
-    public int getBlue() { return sensor.blue(); }
 
+    public boolean ballPresent(int i){
+        String color = detectColor(i);
+        return color.equals("Green") || color.equals("Purple");
+    }
+
+    public String getColor(int i){
+        return detectColor(i);
+    }
+
+    // Super-sensitive detectColor
+    private String detectColor(int i){
+        int r = sensors[i].red();
+        int g = sensors[i].green();
+        int b = sensors[i].blue();
+        int total = r + g + b;
+
+        if(total < 200) return "None";  // very sensitive
+
+        double rRatio = (double) r / total;
+        double gRatio = (double) g / total;
+        double bRatio = (double) b / total;
+
+        // GREEN detection
+        if(gRatio > 0.25 && g > 30) return "Green";
+
+        // PURPLE detection
+        if(bRatio > 0.25 && gRatio < 0.45) return "Purple";
+
+        return "None";
+    }
+
+    public String getRawRGB(int i){
+        return sensors[i].red() + ", " +
+                sensors[i].green() + ", " +
+                sensors[i].blue();
+    }
 
     @Override
-    public void stop() {
-        // Nothing needed here
-    }
+    public void stop(){}
 }

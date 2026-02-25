@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.subSystems;
 import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
@@ -18,17 +19,6 @@ public class Mecnum implements Subsystems {
     public DcMotorEx bLeft;
     public DcMotorEx bRight;
 
-    public void setSafePower(DcMotor motor, double targetPower){
-        final double SLEW_RATE = 0.2;  // max change per cycle
-
-        double currentPower = motor.getPower();
-        double desiredChange = targetPower - currentPower;
-
-        double limitedChange = Math.max(-SLEW_RATE, Math.min(desiredChange, SLEW_RATE));
-
-        motor.setPower(currentPower + limitedChange);
-    }
-
     @Override
     public void init(HardwareMap hardwareMap) {
         fLeft = hardwareMap.get(DcMotorEx.class, "fLeft");
@@ -36,8 +26,8 @@ public class Mecnum implements Subsystems {
         bLeft = hardwareMap.get(DcMotorEx.class, "bLeft");
         bRight = hardwareMap.get(DcMotorEx.class, "bRight");
 
-        fLeft.setDirection(DcMotorEx.Direction.FORWARD);
-        fRight.setDirection(DcMotorEx.Direction.REVERSE);
+        fLeft.setDirection(DcMotorEx.Direction.REVERSE);
+        fRight.setDirection(DcMotorEx.Direction.FORWARD);
         bLeft.setDirection(DcMotorEx.Direction.REVERSE);
         bRight.setDirection(DcMotorEx.Direction.FORWARD);
 
@@ -60,17 +50,32 @@ public class Mecnum implements Subsystems {
     }
 
     // --------------------------------------
-    // UPDATED: Uses Safe Slew-Rate Power Set
+    // Safe slew-rate power set
+    // --------------------------------------
+    public void setSafePower(DcMotor motor, double targetPower){
+        final double SLEW_RATE = 0.2;  // max change per cycle
+
+        double currentPower = motor.getPower();
+        double desiredChange = targetPower - currentPower;
+
+        double limitedChange = Math.max(-SLEW_RATE, Math.min(desiredChange, SLEW_RATE));
+
+        motor.setPower(currentPower + limitedChange);
+    }
+
+    // --------------------------------------
+    // Drive Power
     // --------------------------------------
     public void setDrivePower(double frLeft, double frRight, double baLeft, double baRight) {
-
         setSafePower(fLeft,  frLeft  * driveSpeedControl);
         setSafePower(fRight, frRight * driveSpeedControl);
         setSafePower(bLeft,  baLeft  * driveSpeedControl);
         setSafePower(bRight, baRight * driveSpeedControl);
-
     }
 
+    // --------------------------------------
+    // TeleOp drive
+    // --------------------------------------
     public void driveRobot(Gamepad gamepad1) {
         double y = -gamepad1.left_stick_y;
         double x = gamepad1.left_stick_x;
@@ -94,10 +99,15 @@ public class Mecnum implements Subsystems {
 
         setDrivePower(frLeft, frRight, baLeft, baRight);
     }
-    // Mecnum.java (inside your existing class)
     public void moveForward(double power) {
         setDrivePower(power, power, power, power);
     }
-
-
+    public void driveForwardTimed(double power, long durationMs) {
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < durationMs) {
+            moveForward(power);
+            try { Thread.sleep(10); } catch (InterruptedException e) {}
+        }
+        stopAllMotors();
+    }
 }
