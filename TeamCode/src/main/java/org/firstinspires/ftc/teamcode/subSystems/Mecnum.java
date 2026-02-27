@@ -6,6 +6,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.Servo;
 
 @Configurable
 public class Mecnum implements Subsystems {
@@ -18,6 +19,9 @@ public class Mecnum implements Subsystems {
     public DcMotorEx fRight;
     public DcMotorEx bLeft;
     public DcMotorEx bRight;
+
+    public Servo ptoServo1;
+    public Servo ptoServo2;
 
     @Override
     public void init(HardwareMap hardwareMap) {
@@ -35,6 +39,12 @@ public class Mecnum implements Subsystems {
         fRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         bLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         bRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
+        ptoServo1 = hardwareMap.get(Servo.class, "servo1");
+        ptoServo2 = hardwareMap.get(Servo.class, "servo2");
+
+        ptoServo1.setPosition(0.0);
+        ptoServo2.setPosition(0.0);
 
         stopAllMotors();
     }
@@ -109,5 +119,22 @@ public class Mecnum implements Subsystems {
             try { Thread.sleep(10); } catch (InterruptedException e) {}
         }
         stopAllMotors();
+    }
+
+    //So uhh... Is ts what you mean by servo up and down??
+    public void ptoServoUp() {
+        ptoServo1.setPosition(1.0); // full up
+        ptoServo2.setPosition(1.0);
+    }
+
+    // PTO down
+    public void ptoServoDown() {
+        ptoServo1.setPosition(0.0); // full down
+        ptoServo2.setPosition(0.0);
+    }
+
+    public void ptoServoSet(double position) {
+        ptoServo1.setPosition(position);
+        ptoServo2.setPosition(position);
     }
 }

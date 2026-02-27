@@ -18,7 +18,7 @@ public class Spindexer implements Subsystems {
     public static double MAX_POWER = 0.7;
     public static double INTEGRAL_LIMIT = 300;
 
-    private static final int TICKS_PER_REV = 538;
+    private static final int TICKS_PER_REV = 384;
     private static final int SLOT_ANGLE = TICKS_PER_REV / 3;
 
     private int targetPos = 0;

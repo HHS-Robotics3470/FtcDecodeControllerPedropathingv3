@@ -16,6 +16,7 @@ public class TeleOPBlue extends OpMode {
     private Outtake shooter;
     private Turret turret;
     private CSensor sensors;
+    private DSensor dsensors; //use .getDistanceCM() to get distance in centimeters
 
     // ===== SLOT MEMORY =====
     private boolean[] slotOccupied = {false,false,false};
@@ -42,6 +43,7 @@ public class TeleOPBlue extends OpMode {
         shooter = new Outtake(); shooter.init(hardwareMap);
         turret = new Turret(); turret.init(hardwareMap);
         sensors = new CSensor(); sensors.init(hardwareMap);
+        dsensors = new DSensor(); dsensors.init(hardwareMap);
     }
 
     @Override
@@ -58,6 +60,11 @@ public class TeleOPBlue extends OpMode {
 
         runShootStateMachine();
         spindexer.update();
+        //==========================================================================
+        //Added distance (in milliimeters) to te EEEEEElemetry - thought it might be useful.
+        //Remove if not needed.
+        telemetry.addData("Distance (mm)", dsensors.getDistanceMM());
+        telemetry.update();
 
         updateLast();
     }
