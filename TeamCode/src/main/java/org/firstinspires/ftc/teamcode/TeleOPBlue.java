@@ -15,123 +15,178 @@ public class TeleOPBlue extends OpMode {
     private Spindexer spindexer;
     private Outtake shooter;
     private Turret turret;
-    private DSensor dsensors;
+    private Vision vision;
+    private CSensor colorSensors;
 
-    private boolean ballDetected=false;
-    private long detectTime=0;
-    private boolean waiting=false;
+    // Shooting
+    private int shootCase = -1;
+    private long shootTimer = 0;
+    private int rapidNextIndex = 0;
+    private boolean singleShot = false;
+    private static final long ARM_UP = 250;
+    private static final long ARM_DOWN = 250;
 
-    private int currentSlot=0;
+    // Ball Slots
+    private boolean[] slotOccupied = {false, false, false};
+    private String[] slotColor = {"None", "None", "None"};
 
     @Override
-    public void init(){
-
+    public void init() {
         drive = new Mecnum(); drive.init(hardwareMap);
         intake = new Intake(); intake.init(hardwareMap);
         spindexer = new Spindexer(); spindexer.init(hardwareMap);
         shooter = new Outtake(); shooter.init(hardwareMap);
         turret = new Turret(); turret.init(hardwareMap);
-        dsensors = new DSensor(); dsensors.init(hardwareMap);
+        vision = new Vision(); vision.init(hardwareMap);
+        vision.setValidIds(20);
+
+        colorSensors = new CSensor();
+        colorSensors.init(hardwareMap);
     }
 
     @Override
-    public void loop(){
-
+    public void loop() {
         drive.driveRobot(gamepad1);
+        turret.update(vision.getTX());
 
-        handleIntake();
-        handleFlywheel();
-        handleManualSlots();
+        // ===== INTAKE =====
+        if (gamepad1.a) intake.intakeForwards();
+        else if (gamepad1.b) intake.intakeReverse();
+        else intake.stop();
 
-        autoIndex();
+        // Manual Spindexer Rotation
+        if (gamepad1.dpad_down) rotateToSlot(1);
+        if (gamepad1.dpad_right) rotateToSlot(2);
+        if (gamepad1.dpad_left) rotateToSlot(3);
 
-        spindexer.update();
+        // Flywheel Controll
+        if (gamepad1.right_trigger > 0.1) shooter.enableFlywheel();
+        else if (gamepad1.left_trigger > 0.1) shooter.disableFlywheel();
+        shooter.updateFlywheel();
 
-        if(shooter.wasShotTriggered()){
-
-            spindexer.clearSlot(currentSlot);
+        // yayy Shooting
+        if (shootCase == -1) {
+            if (gamepad1.y) forceShoot();  // Y directly triggers arm shot
+            if (gamepad2.dpad_left) shootColor("Green");
+            if (gamepad2.dpad_right) shootColor("Purple");
+            if (gamepad2.dpad_up) startShootAll();
         }
 
-        telemetry.addData("Distance",dsensors.getDistanceMM());
+        runShootCases();
+
+        // Update the Spindexer or smth
+        spindexer.update();
+
+        // Telemetry Stuff
+        telemetry.addData("Slots", slotOccupied[0] + "," + slotOccupied[1] + "," + slotOccupied[2]);
+        telemetry.addData("Colors", slotColor[0] + "," + slotColor[1] + "," + slotColor[2]);
+        telemetry.addData("ShootCase", shootCase);
+        telemetry.addData("SelectedSlot", rapidNextIndex + 1);
         telemetry.update();
     }
 
-    private void handleIntake(){
+    // Shoots immediately without checking slot state
+    private void forceShoot() {
+        shootCase = 0;
+        shootTimer = System.currentTimeMillis();
+        singleShot = true;
+    }
 
-        if(gamepad1.a){
+    private int firstEmptySlot() {
+        for (int i = 0; i < 3; i++) if (!slotOccupied[i]) return i + 1;
+        return -1;
+    }
 
-            intake.intakeForwards();
-        }
-
-        else if(gamepad1.b){
-
-            intake.intakeReverse();
-        }
-
-        else{
-
-            intake.stop();
+    private void rotateToSlot(int slot) {
+        if (slot >= 1 && slot <= 3) {
+            rapidNextIndex = slot - 1;
+            spindexer.moveToSlot(slot);
         }
     }
 
-    private void handleFlywheel(){
-
-        if(gamepad2.right_trigger>0.5)
-            shooter.enableFlywheel();
-
-        if(gamepad2.left_trigger>0.5)
-            shooter.disableFlywheel();
-
-        shooter.updateFlywheel();
-    }
-
-    private void handleManualSlots(){
-
-        if(gamepad2.a){
-
-            spindexer.moveToSlot(1);
-            currentSlot=1;
-        }
-
-        if(gamepad2.b){
-
-            spindexer.moveToSlot(2);
-            currentSlot=2;
-        }
-
-        if(gamepad2.x){
-
-            spindexer.moveToSlot(3);
-            currentSlot=3;
+    private void shootSlot(int slotIndex) {
+        if (slotIndex >= 0 && slotIndex < 3 && slotOccupied[slotIndex]) {
+            rapidNextIndex = slotIndex;
+            shootCase = 0;
+            shootTimer = System.currentTimeMillis();
+            singleShot = true;
         }
     }
 
-    private void autoIndex(){
-        double distance = dsensors.getDistanceMM();
-        if(gamepad1.a && distance<200 && !ballDetected){
-            ballDetected=true;
-            detectTime = System.currentTimeMillis();
-            waiting=true;
-        }
-        if(waiting){
-            if(System.currentTimeMillis()-detectTime>1000){
-                int slot = spindexer.getNextOpenSlot();
-                if(slot!=-1){
-                    spindexer.moveToSlot(slot);
-                    spindexer.markSlotFilled(slot);
-                    currentSlot = slot;
-                }
-                waiting=false;
+    private void shootColor(String color) {
+        for (int i = 0; i < 3; i++) {
+            if (slotOccupied[i] && slotColor[i].equals(color)) {
+                rapidNextIndex = i;
+                shootCase = 0;
+                shootTimer = System.currentTimeMillis();
+                singleShot = true;
+                break;
             }
         }
-        if(distance>220){
-            ballDetected=false;
+    }
+
+    private void startShootAll() {
+        for (int i = 0; i < 3; i++) {
+            if (slotOccupied[i]) {
+                rapidNextIndex = i;
+                shootCase = 0;
+                shootTimer = System.currentTimeMillis();
+                singleShot = false;
+                break;
+            }
         }
+    }
+
+    private void runShootCases() {
+        if (shootCase == -1) return;
+
+        long now = System.currentTimeMillis();
+        switch (shootCase) {
+            case 0: // arm up
+                shooter.shooterArmUp();
+                shootTimer = now;
+                shootCase = 1;
+                break;
+
+            case 1: // arm up pause
+                if (now - shootTimer >= ARM_UP) {
+                    shooter.shooterArmDown();
+                    shootTimer = now;
+                    shootCase = 2;
+                }
+                break;
+
+            case 2: // arm down -> done
+                if (now - shootTimer >= ARM_DOWN) {
+                    shootCase = -1;  // done, no spindexer wait needed for force shoot
+                }
+                break;
+
+            case 3: // wait for spindexer to reach target
+                if (spindexer.atTarget()) {
+                    slotOccupied[rapidNextIndex] = false;
+                    slotColor[rapidNextIndex] = "None";
+
+                    if (!singleShot) {
+                        int next = nextOccupiedSlot(rapidNextIndex);
+                        if (next != -1) {
+                            rapidNextIndex = next;
+                            shootCase = 0;
+                        } else shootCase = -1;
+                    } else shootCase = -1;
+                }
+                break;
+        }
+    }
+
+    private int nextOccupiedSlot(int current) {
+        for (int i = current + 1; i < 3; i++) if (slotOccupied[i]) return i;
+        for (int i = 0; i <= current; i++) if (slotOccupied[i]) return i;
+        return -1;
     }
 
     @Override
-    public void stop(){
-
+    public void stop() {
         drive.stop();
         intake.stop();
         spindexer.stop();

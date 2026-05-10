@@ -18,7 +18,7 @@ public class TeleOPRed extends OpMode {
     private Vision vision;
     private CSensor colorSensors;
 
-    // ===== SHOOTING STATE =====
+    // Shooting
     private int shootCase = -1;
     private long shootTimer = 0;
     private int rapidNextIndex = 0;
@@ -26,7 +26,7 @@ public class TeleOPRed extends OpMode {
     private static final long ARM_UP = 250;
     private static final long ARM_DOWN = 250;
 
-    // ===== SLOT TRACKING =====
+    // Ball Slots
     private boolean[] slotOccupied = {false, false, false};
     private String[] slotColor = {"None", "None", "None"};
 
@@ -54,30 +54,30 @@ public class TeleOPRed extends OpMode {
         else if (gamepad1.b) intake.intakeReverse();
         else intake.stop();
 
-        // ===== MANUAL SPINDEXER ROTATION =====
-        if (gamepad2.a) rotateToSlot(1);
-        if (gamepad2.b) rotateToSlot(2);
-        if (gamepad2.x) rotateToSlot(3);
+        // Manual Spindexer Rotation
+        if (gamepad1.dpad_down) rotateToSlot(1);
+        if (gamepad1.dpad_right) rotateToSlot(2);
+        if (gamepad1.dpad_left) rotateToSlot(3);
 
-        // ===== SHOOTING =====
+        // Flywheel Controll
+        if (gamepad1.right_trigger > 0.1) shooter.enableFlywheel();
+        else if (gamepad1.left_trigger > 0.1) shooter.disableFlywheel();
+        shooter.updateFlywheel();
+
+        // yayy Shooting
         if (shootCase == -1) {
+            if (gamepad1.y) forceShoot();  // Y directly triggers arm shot
             if (gamepad2.dpad_left) shootColor("Green");
             if (gamepad2.dpad_right) shootColor("Purple");
-            if (gamepad2.y) shootSlot(rapidNextIndex); // shoot current slot
             if (gamepad2.dpad_up) startShootAll();
         }
 
         runShootCases();
 
-        // ===== SPINDEXER UPDATE =====
+        // Update the Spindexer or smth
         spindexer.update();
 
-        // ===== FLYWHEEL CONTROL =====
-        if (gamepad2.right_trigger > 0.1) shooter.enableFlywheel();
-        else if (gamepad2.left_trigger > 0.1) shooter.disableFlywheel();
-        shooter.updateFlywheel();
-
-        // ===== TELEMETRY =====
+        // Telemetry Stuff
         telemetry.addData("Slots", slotOccupied[0] + "," + slotOccupied[1] + "," + slotOccupied[2]);
         telemetry.addData("Colors", slotColor[0] + "," + slotColor[1] + "," + slotColor[2]);
         telemetry.addData("ShootCase", shootCase);
@@ -85,6 +85,12 @@ public class TeleOPRed extends OpMode {
         telemetry.update();
     }
 
+    // Shoots immediately without checking slot state
+    private void forceShoot() {
+        shootCase = 0;
+        shootTimer = System.currentTimeMillis();
+        singleShot = true;
+    }
 
     private int firstEmptySlot() {
         for (int i = 0; i < 3; i++) if (!slotOccupied[i]) return i + 1;
@@ -150,9 +156,9 @@ public class TeleOPRed extends OpMode {
                 }
                 break;
 
-            case 2: // arm down -> feed
+            case 2: // arm down -> done
                 if (now - shootTimer >= ARM_DOWN) {
-                    shootCase = 3;
+                    shootCase = -1;  // done, no spindexer wait needed for force shoot
                 }
                 break;
 

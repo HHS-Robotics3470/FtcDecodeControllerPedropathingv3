@@ -12,7 +12,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 public class Mecnum implements Subsystems {
     private RobotHardware robotHardware;
 
-    public final double DRIVE_SPEED_MAX = 1;
+    public final double DRIVE_SPEED_MAX = 1.0;
     public double driveSpeedControl = DRIVE_SPEED_MAX;
 
     public DcMotorEx fLeft;
