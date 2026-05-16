@@ -11,7 +11,7 @@ public class Spindexer implements Subsystems {
     private DcMotorEx motor;
 
 
-    public static double MOTOR_POWER = 0.15;
+    public static double MOTOR_POWER = 0.16;
     public static int POSITION_THRESHOLD = 30;
 
     private static final double TICKS_PER_REV = 537.6;
