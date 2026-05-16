@@ -12,7 +12,6 @@ public class TeleOPRed extends OpMode {
 
     private Mecnum drive;
     private Intake intake;
-    private Spindexer spindexer;
     private Outtake shooter;
     private Turret turret;
     private Vision vision;
@@ -34,7 +33,6 @@ public class TeleOPRed extends OpMode {
     public void init() {
         drive = new Mecnum(); drive.init(hardwareMap);
         intake = new Intake(); intake.init(hardwareMap);
-        spindexer = new Spindexer(); spindexer.init(hardwareMap);
         shooter = new Outtake(); shooter.init(hardwareMap);
         turret = new Turret(); turret.init(hardwareMap);
         vision = new Vision(); vision.init(hardwareMap);
@@ -74,8 +72,6 @@ public class TeleOPRed extends OpMode {
 
         runShootCases();
 
-        // Update the Spindexer or smth
-        spindexer.update();
 
         // Telemetry Stuff
         telemetry.addData("Slots", slotOccupied[0] + "," + slotOccupied[1] + "," + slotOccupied[2]);
@@ -100,7 +96,6 @@ public class TeleOPRed extends OpMode {
     private void rotateToSlot(int slot) {
         if (slot >= 1 && slot <= 3) {
             rapidNextIndex = slot - 1;
-            spindexer.moveToSlot(slot);
         }
     }
 
@@ -162,20 +157,7 @@ public class TeleOPRed extends OpMode {
                 }
                 break;
 
-            case 3: // wait for spindexer to reach target
-                if (spindexer.atTarget()) {
-                    slotOccupied[rapidNextIndex] = false;
-                    slotColor[rapidNextIndex] = "None";
 
-                    if (!singleShot) {
-                        int next = nextOccupiedSlot(rapidNextIndex);
-                        if (next != -1) {
-                            rapidNextIndex = next;
-                            shootCase = 0;
-                        } else shootCase = -1;
-                    } else shootCase = -1;
-                }
-                break;
         }
     }
 
@@ -189,7 +171,6 @@ public class TeleOPRed extends OpMode {
     public void stop() {
         drive.stop();
         intake.stop();
-        spindexer.stop();
         shooter.stop();
         turret.stop();
     }

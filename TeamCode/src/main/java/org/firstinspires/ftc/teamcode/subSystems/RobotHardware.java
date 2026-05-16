@@ -12,7 +12,6 @@ public class RobotHardware {
     public Mecnum mecnum;
     public Intake intake;
     public Outtake outtake;
-    public Spindexer spindexer;
     public Turret turret;
 
     public Subsystems[] subsystems;
@@ -24,10 +23,9 @@ public class RobotHardware {
         mecnum = new Mecnum();
         intake = new Intake();
         outtake = new Outtake();
-        spindexer = new Spindexer();
         turret = new Turret();
 
-        subsystems = new Subsystems[]{mecnum, intake, outtake, spindexer, turret};
+        subsystems = new Subsystems[]{mecnum, intake, outtake, turret};
     }
 
     public void init() {
