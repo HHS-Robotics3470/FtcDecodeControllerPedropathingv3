@@ -30,6 +30,11 @@ public class TeleOPRed extends OpMode {
     private boolean[] slotOccupied = {false, false, false};
     private String[] slotColor = {"None", "None", "None"};
 
+    // Edge Detection
+    private boolean lastDpadDown = false;
+    private boolean lastDpadRight = false;
+    private boolean lastDpadLeft = false;
+
     @Override
     public void init() {
         drive = new Mecnum(); drive.init(hardwareMap);
@@ -55,18 +60,22 @@ public class TeleOPRed extends OpMode {
         else intake.stop();
 
         // Manual Spindexer Rotation
-        if (gamepad1.dpad_down) rotateToSlot(1);
-        if (gamepad1.dpad_right) rotateToSlot(2);
-        if (gamepad1.dpad_left) rotateToSlot(3);
+        if (gamepad1.dpad_down && !lastDpadDown) rotateToSlot(2);
+        if (gamepad1.dpad_right && !lastDpadRight) rotateToSlot(3);
+        if (gamepad1.dpad_left && !lastDpadLeft) rotateToSlot(1);
 
-        // Flywheel Controll
+        lastDpadDown = gamepad1.dpad_down;
+        lastDpadRight = gamepad1.dpad_right;
+        lastDpadLeft = gamepad1.dpad_left;
+
+        // Flywheel Control
         if (gamepad1.right_trigger > 0.1) shooter.enableFlywheel();
         else if (gamepad1.left_trigger > 0.1) shooter.disableFlywheel();
         shooter.updateFlywheel();
 
         // yayy Shooting
         if (shootCase == -1) {
-            if (gamepad1.y) forceShoot();  // Y directly triggers arm shot
+            if (gamepad1.y) forceShoot();
             if (gamepad2.dpad_left) shootColor("Green");
             if (gamepad2.dpad_right) shootColor("Purple");
             if (gamepad2.dpad_up) startShootAll();
@@ -82,6 +91,10 @@ public class TeleOPRed extends OpMode {
         telemetry.addData("Colors", slotColor[0] + "," + slotColor[1] + "," + slotColor[2]);
         telemetry.addData("ShootCase", shootCase);
         telemetry.addData("SelectedSlot", rapidNextIndex + 1);
+        // ===== DEBUG - tells us what spindexer is doing =====
+        telemetry.addData("Spindexer Pos", spindexer.getPosition());
+        telemetry.addData("Spindexer Target", spindexer.getTarget());
+        telemetry.addData("Spindexer Moving", spindexer.getIsMoving());
         telemetry.update();
     }
 
@@ -158,7 +171,7 @@ public class TeleOPRed extends OpMode {
 
             case 2: // arm down -> done
                 if (now - shootTimer >= ARM_DOWN) {
-                    shootCase = -1;  // done, no spindexer wait needed for force shoot
+                    shootCase = -1;
                 }
                 break;
 

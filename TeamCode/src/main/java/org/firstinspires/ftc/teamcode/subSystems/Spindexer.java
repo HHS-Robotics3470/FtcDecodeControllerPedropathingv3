@@ -2,138 +2,97 @@ package org.firstinspires.ftc.teamcode.subSystems;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 @Configurable
 public class Spindexer implements Subsystems {
 
-    private DcMotor motor;
+    private DcMotorEx motor;
 
-    public static double kP = 0.01;
-    public static double kI = 0.00001;
-    public static double kD = 0.0008;
 
-    public static double MAX_POWER = 0.5;
+    public static double MOTOR_POWER = 0.15;
+    public static int POSITION_THRESHOLD = 30;
 
-    private static final int TICKS_PER_REV = 384;
-    private static final int SLOT_ANGLE = TICKS_PER_REV / 3;
+    private static final double TICKS_PER_REV = 537.6;
 
     private int targetPos = 0;
-    private int totalRotation = 0;
-
-    private double integral = 0;
-    private double lastError = 0;
-    private long lastTime = 0;
+    private boolean isMoving = false;
 
     private boolean[] slotFilled = {false, false, false};
 
     @Override
     public void init(HardwareMap hw) {
-
-        motor = hw.get(DcMotor.class, "spindexerMotor");
-
+        motor = hw.get(DcMotorEx.class, "spindexerMotor");
         motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-        totalRotation = motor.getCurrentPosition();
-        targetPos = totalRotation;
-        lastTime = System.currentTimeMillis();
+        targetPos = motor.getCurrentPosition();
     }
 
     public void moveToSlot(int slot) {
-
         if (slot < 1 || slot > 3) return;
 
-        int desired = (slot - 1) * SLOT_ANGLE;
+        int currentPos = motor.getCurrentPosition();
+        int desired = (int)((slot - 1) * TICKS_PER_REV / 3);
 
-        int currentMod = mod(totalRotation, TICKS_PER_REV);
+        int currentMod = mod(currentPos, (int)TICKS_PER_REV);
 
         int diff = desired - currentMod;
 
-        if (diff > TICKS_PER_REV / 2) diff -= TICKS_PER_REV;
-        if (diff < -TICKS_PER_REV / 2) diff += TICKS_PER_REV;
+        if (diff > TICKS_PER_REV / 2) diff -= (int)TICKS_PER_REV;
+        if (diff < -TICKS_PER_REV / 2) diff += (int)TICKS_PER_REV;
 
-        totalRotation += diff;
-        targetPos = totalRotation;
+        if (Math.abs(diff) <= POSITION_THRESHOLD) return;
 
-        integral = 0;
-        lastError = 0;
+        targetPos = currentPos + diff;
+
+        motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        motor.setPower(diff > 0 ? MOTOR_POWER : -MOTOR_POWER);
+
+        isMoving = true;
+    }
+
+    public void update() {
+        if (!isMoving) return;
+
+        if (Math.abs(targetPos - motor.getCurrentPosition()) <= POSITION_THRESHOLD) {
+            motor.setPower(0);
+            isMoving = false;
+        }
+    }
+
+    public boolean atTarget() {
+        return !isMoving;
     }
 
     public int getNextOpenSlot() {
-
         for (int i = 0; i < 3; i++) {
-
-            if (!slotFilled[i]) {
-                return i + 1;
-            }
+            if (!slotFilled[i]) return i + 1;
         }
-
         return -1;
     }
 
     public void markSlotFilled(int slot) {
-
-        if (slot >= 1 && slot <= 3) {
-            slotFilled[slot - 1] = true;
-        }
+        if (slot >= 1 && slot <= 3) slotFilled[slot - 1] = true;
     }
 
     public void clearSlot(int slot) {
-
-        if (slot >= 1 && slot <= 3) {
-            slotFilled[slot - 1] = false;
-        }
+        if (slot >= 1 && slot <= 3) slotFilled[slot - 1] = false;
     }
 
-    public void update() {
-
-        long now = System.currentTimeMillis();
-        double dt = (now - lastTime) / 1000.0;
-
-        lastTime = now;
-
-        if (dt <= 0) dt = 0.01;
-
-        int current = motor.getCurrentPosition();
-
-        double error = targetPos - current;
-
-        integral += error * dt;
-
-        double derivative = (error - lastError) / dt;
-
-        lastError = error;
-
-        double output =
-                (kP * error) +
-                        (kI * integral) +
-                        (kD * derivative);
-
-        output = clamp(output, -MAX_POWER, MAX_POWER);
-
-        motor.setPower(output);
-    }
-
-    public boolean atTarget() {
-
-        return Math.abs(targetPos - motor.getCurrentPosition()) < 6;
-    }
+    public int getPosition() { return motor.getCurrentPosition(); }
+    public int getTarget() { return targetPos; }
+    public boolean getIsMoving() { return isMoving; }
 
     @Override
     public void stop() {
-
         motor.setPower(0);
+        isMoving = false;
     }
 
     private int mod(int x, int m) {
-
         return (x % m + m) % m;
-    }
-
-    private double clamp(double val, double min, double max) {
-
-        return Math.max(min, Math.min(max, val));
     }
 }
