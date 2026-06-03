@@ -12,12 +12,13 @@ public class TeleOPRed extends OpMode {
 
     private Mecnum drive;
     private Intake intake;
+    private Spindexer spindexer;
     private Outtake shooter;
     private Turret turret;
     private Vision vision;
     private CSensor colorSensors;
 
-    // Shooting
+    // ===== SHOOTING STATE =====
     private int shootCase = -1;
     private long shootTimer = 0;
     private int rapidNextIndex = 0;
@@ -25,14 +26,20 @@ public class TeleOPRed extends OpMode {
     private static final long ARM_UP = 250;
     private static final long ARM_DOWN = 250;
 
-    // Ball Slots
+    // ===== SLOT TRACKING =====
     private boolean[] slotOccupied = {false, false, false};
     private String[] slotColor = {"None", "None", "None"};
+
+    // ===== DPAD RISING EDGE =====
+    private boolean prevDpadRight = false;
+    private boolean prevDpadLeft  = false;
+    private boolean prevDpadDown  = false;
 
     @Override
     public void init() {
         drive = new Mecnum(); drive.init(hardwareMap);
         intake = new Intake(); intake.init(hardwareMap);
+        spindexer = new Spindexer(); spindexer.init(hardwareMap);
         shooter = new Outtake(); shooter.init(hardwareMap);
         turret = new Turret(); turret.init(hardwareMap);
         vision = new Vision(); vision.init(hardwareMap);
@@ -52,40 +59,46 @@ public class TeleOPRed extends OpMode {
         else if (gamepad1.b) intake.intakeReverse();
         else intake.stop();
 
-        // Manual Spindexer Rotation
-        if (gamepad1.dpad_down) rotateToSlot(1);
-        if (gamepad1.dpad_right) rotateToSlot(2);
-        if (gamepad1.dpad_left) rotateToSlot(3);
+        // ===== MANUAL SPINDEXER ROTATION (A/B/X) =====
+        if (gamepad2.a) rotateToSlot(1);
+        if (gamepad2.b) rotateToSlot(2);
+        if (gamepad2.x) rotateToSlot(3);
 
-        // Flywheel Controll
-        if (gamepad1.right_trigger > 0.1) shooter.enableFlywheel();
-        else if (gamepad1.left_trigger > 0.1) shooter.disableFlywheel();
-        shooter.updateFlywheel();
+        // ===== DPAD SPINDEXER ROTATION (rising edge) =====
+        if (gamepad2.dpad_right && !prevDpadRight) rotateToSlot(1);
+        if (gamepad2.dpad_left  && !prevDpadLeft)  rotateToSlot(2);
+        if (gamepad2.dpad_down  && !prevDpadDown)  rotateToSlot(3);
 
-        // yayy Shooting
+        prevDpadRight = gamepad2.dpad_right;
+        prevDpadLeft  = gamepad2.dpad_left;
+        prevDpadDown  = gamepad2.dpad_down;
+
+        // ===== SHOOTING =====
         if (shootCase == -1) {
-            if (gamepad1.y) forceShoot();  // Y directly triggers arm shot
-            if (gamepad2.dpad_left) shootColor("Green");
-            if (gamepad2.dpad_right) shootColor("Purple");
+            // if (gamepad2.dpad_left) shootColor("Green");
+            // if (gamepad2.dpad_right) shootColor("Purple");
+            if (gamepad2.y) shootSlot(rapidNextIndex);
             if (gamepad2.dpad_up) startShootAll();
         }
 
         runShootCases();
 
+        // ===== SPINDEXER UPDATE =====
+        spindexer.update();
 
-        // Telemetry Stuff
+        // ===== FLYWHEEL CONTROL =====
+        if (gamepad2.right_trigger > 0.1) shooter.enableFlywheel();
+        else if (gamepad2.left_trigger > 0.1) shooter.disableFlywheel();
+        shooter.updateFlywheel();
+
+        // ===== TELEMETRY =====
         telemetry.addData("Slots", slotOccupied[0] + "," + slotOccupied[1] + "," + slotOccupied[2]);
         telemetry.addData("Colors", slotColor[0] + "," + slotColor[1] + "," + slotColor[2]);
         telemetry.addData("ShootCase", shootCase);
         telemetry.addData("SelectedSlot", rapidNextIndex + 1);
+        telemetry.addData("Spindexer Pos", spindexer.getCurrentPosition());
+        telemetry.addData("Spindexer At Target", spindexer.atTarget());
         telemetry.update();
-    }
-
-    // Shoots immediately without checking slot state
-    private void forceShoot() {
-        shootCase = 0;
-        shootTimer = System.currentTimeMillis();
-        singleShot = true;
     }
 
     private int firstEmptySlot() {
@@ -96,6 +109,7 @@ public class TeleOPRed extends OpMode {
     private void rotateToSlot(int slot) {
         if (slot >= 1 && slot <= 3) {
             rapidNextIndex = slot - 1;
+            spindexer.moveToSlot(slot);
         }
     }
 
@@ -108,17 +122,17 @@ public class TeleOPRed extends OpMode {
         }
     }
 
-    private void shootColor(String color) {
-        for (int i = 0; i < 3; i++) {
-            if (slotOccupied[i] && slotColor[i].equals(color)) {
-                rapidNextIndex = i;
-                shootCase = 0;
-                shootTimer = System.currentTimeMillis();
-                singleShot = true;
-                break;
-            }
-        }
-    }
+    // private void shootColor(String color) {
+    //     for (int i = 0; i < 3; i++) {
+    //         if (slotOccupied[i] && slotColor[i].equals(color)) {
+    //             rapidNextIndex = i;
+    //             shootCase = 0;
+    //             shootTimer = System.currentTimeMillis();
+    //             singleShot = true;
+    //             break;
+    //         }
+    //     }
+    // }
 
     private void startShootAll() {
         for (int i = 0; i < 3; i++) {
@@ -137,13 +151,13 @@ public class TeleOPRed extends OpMode {
 
         long now = System.currentTimeMillis();
         switch (shootCase) {
-            case 0: // arm up
+            case 0:
                 shooter.shooterArmUp();
                 shootTimer = now;
                 shootCase = 1;
                 break;
 
-            case 1: // arm up pause
+            case 1:
                 if (now - shootTimer >= ARM_UP) {
                     shooter.shooterArmDown();
                     shootTimer = now;
@@ -151,13 +165,26 @@ public class TeleOPRed extends OpMode {
                 }
                 break;
 
-            case 2: // arm down -> done
+            case 2:
                 if (now - shootTimer >= ARM_DOWN) {
-                    shootCase = -1;  // done, no spindexer wait needed for force shoot
+                    shootCase = 3;
                 }
                 break;
 
+            case 3:
+                if (spindexer.atTarget()) {
+                    slotOccupied[rapidNextIndex] = false;
+                    slotColor[rapidNextIndex] = "None";
 
+                    if (!singleShot) {
+                        int next = nextOccupiedSlot(rapidNextIndex);
+                        if (next != -1) {
+                            rapidNextIndex = next;
+                            shootCase = 0;
+                        } else shootCase = -1;
+                    } else shootCase = -1;
+                }
+                break;
         }
     }
 
@@ -171,6 +198,7 @@ public class TeleOPRed extends OpMode {
     public void stop() {
         drive.stop();
         intake.stop();
+        spindexer.stop();
         shooter.stop();
         turret.stop();
     }
