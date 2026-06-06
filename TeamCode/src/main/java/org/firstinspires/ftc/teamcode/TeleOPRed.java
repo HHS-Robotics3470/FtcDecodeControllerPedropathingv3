@@ -17,6 +17,7 @@ public class TeleOPRed extends OpMode {
     private Turret turret;
     private Vision vision;
     private CSensor colorSensors;
+    private Lifts lifts;
 
     // ===== SHOOTING STATE =====
     private int shootCase = -1;
@@ -34,6 +35,7 @@ public class TeleOPRed extends OpMode {
     private boolean prevDpadRight = false;
     private boolean prevDpadLeft  = false;
     private boolean prevDpadDown  = false;
+    private boolean prevDpadUp = false;
 
     @Override
     public void init() {
@@ -44,9 +46,8 @@ public class TeleOPRed extends OpMode {
         turret = new Turret(); turret.init(hardwareMap);
         vision = new Vision(); vision.init(hardwareMap);
         vision.setValidIds(20);
-
-        colorSensors = new CSensor();
-        colorSensors.init(hardwareMap);
+        colorSensors = new CSensor(); colorSensors.init(hardwareMap);
+        lifts = new Lifts(); lifts.init(hardwareMap);
     }
 
     @Override
@@ -58,6 +59,9 @@ public class TeleOPRed extends OpMode {
         if (gamepad1.a) intake.intakeForwards();
         else if (gamepad1.b) intake.intakeReverse();
         else intake.stop();
+        // ===== LIFT TOGGLE =====
+        if (gamepad1.dpad_up && !prevDpadUp) lifts.liftsToggle();
+        prevDpadUp = gamepad1.dpad_up;
 
         // ===== MANUAL SPINDEXER ROTATION (A/B/X) =====
         if (gamepad2.a) rotateToSlot(1);
@@ -98,6 +102,7 @@ public class TeleOPRed extends OpMode {
         telemetry.addData("SelectedSlot", rapidNextIndex + 1);
         telemetry.addData("Spindexer Pos", spindexer.getCurrentPosition());
         telemetry.addData("Spindexer At Target", spindexer.atTarget());
+        telemetry.addData("Lift Down", lifts.isDown());
         telemetry.update();
     }
 
@@ -201,5 +206,6 @@ public class TeleOPRed extends OpMode {
         spindexer.stop();
         shooter.stop();
         turret.stop();
+        lifts.stop();
     }
 }

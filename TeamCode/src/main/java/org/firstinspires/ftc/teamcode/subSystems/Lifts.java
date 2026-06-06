@@ -21,7 +21,7 @@ public class Lifts implements Subsystems {
         lLift.setPosition(LEFT_DOWN);
         rLift.setPosition(RIGHT_DOWN);
     }
-    public void armToggle(){
+    public void liftsToggle(){
         if (isDown){
             lLift.setPosition(LEFT_UP);
             rLift.setPosition(RIGHT_UP);
