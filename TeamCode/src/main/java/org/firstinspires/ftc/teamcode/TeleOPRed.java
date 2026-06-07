@@ -31,11 +31,17 @@ public class TeleOPRed extends OpMode {
     private boolean[] slotOccupied = {false, false, false};
     private String[] slotColor = {"None", "None", "None"};
 
+    // ===== AUTO SPINDEXER =====
+    private boolean ballDebouncing = false;
+    private long ballDebounceTimer = 0;
+    private static final long BALL_DEBOUNCE = 300;
+    private boolean manualSpindexOverride = false;
+
     // ===== DPAD RISING EDGE =====
     private boolean prevDpadRight = false;
     private boolean prevDpadLeft  = false;
     private boolean prevDpadDown  = false;
-    private boolean prevDpadUp = false;
+    private boolean prevDpadUp    = false;
 
     @Override
     public void init() {
@@ -55,32 +61,69 @@ public class TeleOPRed extends OpMode {
         drive.driveRobot(gamepad1);
         turret.update(vision.getTX());
 
+        // ===== SENSOR SLOT SYNC =====
+        for (int i = 0; i < 3; i++) {
+            slotOccupied[i] = colorSensors.ballPresent(i);
+            slotColor[i] = colorSensors.getColor(i);
+        }
+
+        boolean allFull = slotOccupied[0] && slotOccupied[1] && slotOccupied[2];
+
         // ===== INTAKE =====
-        if (gamepad1.a) intake.intakeForwards();
-        else if (gamepad1.b) intake.intakeReverse();
-        else intake.stop();
+        if (!allFull) {
+            if (gamepad1.a) intake.intakeForwards();
+            else if (gamepad1.b) intake.intakeReverse();
+            else intake.stop();
+        } else {
+            intake.stop();
+        }
+
         // ===== LIFT TOGGLE =====
         if (gamepad1.dpad_up && !prevDpadUp) lifts.liftsToggle();
         prevDpadUp = gamepad1.dpad_up;
 
-        // ===== MANUAL SPINDEXER ROTATION G2 (A/B/X) =====
-        if (gamepad2.a) rotateToSlot(1);
-        if (gamepad2.b) rotateToSlot(2);
-        if (gamepad2.x) rotateToSlot(3);
+        // ===== MANUAL SPINDEXER ROTATION =====
+        boolean manualPressed = gamepad2.a || gamepad2.b || gamepad2.x
+                || gamepad1.dpad_right || gamepad1.dpad_left || gamepad1.dpad_down;
 
-        // ===== DPAD SPINDEXER ROTATION G1 (rising edge) =====
-        if (gamepad1.dpad_right && !prevDpadRight) rotateToSlot(1);
-        if (gamepad1.dpad_left  && !prevDpadLeft)  rotateToSlot(2);
-        if (gamepad1.dpad_down  && !prevDpadDown)  rotateToSlot(3);
+        if (gamepad2.a) { rotateToSlot(1); manualSpindexOverride = true; }
+        if (gamepad2.b) { rotateToSlot(2); manualSpindexOverride = true; }
+        if (gamepad2.x) { rotateToSlot(3); manualSpindexOverride = true; }
+
+        if (gamepad1.dpad_right && !prevDpadRight) { rotateToSlot(1); manualSpindexOverride = true; }
+        if (gamepad1.dpad_left  && !prevDpadLeft)  { rotateToSlot(2); manualSpindexOverride = true; }
+        if (gamepad1.dpad_down  && !prevDpadDown)  { rotateToSlot(3); manualSpindexOverride = true; }
+
+        if (!manualPressed) manualSpindexOverride = false;
 
         prevDpadRight = gamepad1.dpad_right;
         prevDpadLeft  = gamepad1.dpad_left;
         prevDpadDown  = gamepad1.dpad_down;
 
+        // ===== AUTO SPINDEXER =====
+        if (!manualSpindexOverride && shootCase == -1) {
+            boolean ballAtSlot0 = colorSensors.ballPresent(0);
+
+            if (ballAtSlot0 && (!slotOccupied[1] || !slotOccupied[2])) {
+                if (!ballDebouncing) {
+                    ballDebouncing = true;
+                    ballDebounceTimer = System.currentTimeMillis();
+                }
+            } else {
+                ballDebouncing = false;
+            }
+
+            if (ballDebouncing && System.currentTimeMillis() - ballDebounceTimer >= BALL_DEBOUNCE) {
+                ballDebouncing = false;
+                int nextEmpty = firstEmptySlotAfter(0);
+                if (nextEmpty != -1) {
+                    rotateToSlot(nextEmpty);
+                }
+            }
+        }
+
         // ===== SHOOTING =====
         if (shootCase == -1) {
-            // if (gamepad2.dpad_left) shootColor("Green");
-            // if (gamepad2.dpad_right) shootColor("Purple");
             if (gamepad2.y) shootSlot(rapidNextIndex);
             if (gamepad2.dpad_up) startShootAll();
         }
@@ -96,7 +139,7 @@ public class TeleOPRed extends OpMode {
         shooter.updateFlywheel();
 
         // ===== KICKER =====
-        if (shootCase == -1){
+        if (shootCase == -1) {
             if (gamepad1.y) forceShoot();
         }
 
@@ -106,9 +149,16 @@ public class TeleOPRed extends OpMode {
         telemetry.addData("ShootCase", shootCase);
         telemetry.addData("SelectedSlot", rapidNextIndex + 1);
         telemetry.addData("Spindexer Pos", spindexer.getCurrentPosition());
+        telemetry.addData("Spindexer Target", spindexer.getTargetPosition());
         telemetry.addData("Spindexer At Target", spindexer.atTarget());
+        telemetry.addData("Spindexer Mode", spindexer.getMode());
+        telemetry.addData("Spindexer Active", spindexer.getActive());
+        telemetry.addData("Spindexer Error", spindexer.getTargetPosition() - spindexer.getCurrentPosition());
         telemetry.addData("Lift Down", lifts.isDown());
+        telemetry.addData("All Slots Full", allFull);
+        telemetry.addData("Ball Debouncing", ballDebouncing);
         telemetry.update();
+
     }
 
     private int firstEmptySlot() {
@@ -116,11 +166,17 @@ public class TeleOPRed extends OpMode {
         return -1;
     }
 
-    private void forceShoot(){
+    private int firstEmptySlotAfter(int after) {
+        for (int i = after + 1; i < 3; i++) if (!slotOccupied[i]) return i + 1;
+        return -1;
+    }
+
+    private void forceShoot() {
         shootCase = 0;
         shootTimer = System.currentTimeMillis();
         singleShot = true;
     }
+
     private void rotateToSlot(int slot) {
         if (slot >= 1 && slot <= 3) {
             rapidNextIndex = slot - 1;
@@ -136,18 +192,6 @@ public class TeleOPRed extends OpMode {
             singleShot = true;
         }
     }
-
-    // private void shootColor(String color) {
-    //     for (int i = 0; i < 3; i++) {
-    //         if (slotOccupied[i] && slotColor[i].equals(color)) {
-    //             rapidNextIndex = i;
-    //             shootCase = 0;
-    //             shootTimer = System.currentTimeMillis();
-    //             singleShot = true;
-    //             break;
-    //         }
-    //     }
-    // }
 
     private void startShootAll() {
         for (int i = 0; i < 3; i++) {

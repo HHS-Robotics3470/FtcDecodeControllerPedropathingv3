@@ -2,138 +2,139 @@ package org.firstinspires.ftc.teamcode.subSystems;
 
 import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 @Configurable
 public class Spindexer implements Subsystems {
 
-    private DcMotor motor;
+    private DcMotorEx motor;
 
-    public static double kP = 0.01;
-    public static double kI = 0.00001;
-    public static double kD = 0.0008;
+    public static double MOVE_POWER = 0.1;
+    public static double BRAKE_POWER = 0.5; // prevents overshooting
+    public static long   MOVE_TIME_MS = 150;
+    public static long   BRAKE_TIME_MS = 50;
 
-    public static double MAX_POWER = 0.5;
+    // state machine
+    private static final int IDLE = 0;
+    private static final int MOVING = 1;
+    private static final int BRAKING = 2;
 
-    private static final int TICKS_PER_REV = 384;
-    private static final int SLOT_ANGLE = TICKS_PER_REV / 3;
+    private int state = IDLE;
+    private long stateTimer = 0;
+    private double moveDirection = 0;
 
-    private int targetPos = 0;
+    private int currentSlot = 1;
+    private int targetSlot = 1;
 
-    private double integral = 0;
-    private double lastError = 0;
-    private long lastTime = 0;
-
-    private boolean[] slotFilled = {false,false,false};
+    private boolean[] slotFilled = {false, false, false};
 
     @Override
     public void init(HardwareMap hw) {
-
-        motor = hw.get(DcMotor.class,"spindexerMotor");
+        motor = hw.get(DcMotorEx.class, "spindexerMotor");
 
         motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
-        lastTime = System.currentTimeMillis();
+        motor.setPower(0);
+        // once init: current pos is set to pos 1
+        currentSlot = 1;
+        targetSlot  = 1;
     }
 
-    public void moveToSlot(int slot){
+    public void moveToSlot(int slot) {
+        if (slot < 1 || slot > 3) return;
+        if (slot == currentSlot && state == IDLE) return;
+        if (slot == targetSlot && state != IDLE) return;
 
-        if(slot < 1 || slot > 3) return;
+        targetSlot = slot;
 
-        int desired = (slot-1)*SLOT_ANGLE;
+        //***** Spindexing Logic *****
+        // forward sequence 1->2, 2->3, 3->1 = clockwise = negative
+        // backward sequence 1->3, 3->2, 2->1 = counter-clockwise = positive
+        boolean isForward = (currentSlot == 1 && targetSlot == 2)
+                || (currentSlot == 2 && targetSlot == 3)
+                || (currentSlot == 3 && targetSlot == 1);
 
-        int currentMod = mod(motor.getCurrentPosition(),TICKS_PER_REV);
+        moveDirection = isForward ? -1.0 : 1.0;
 
-        int diff = desired - currentMod;
-
-        if(diff > TICKS_PER_REV/2) diff -= TICKS_PER_REV;
-        if(diff < -TICKS_PER_REV/2) diff += TICKS_PER_REV;
-
-        targetPos = motor.getCurrentPosition() + diff;
-
-        integral = 0;
-        lastError = 0;
+        motor.setPower(MOVE_POWER * moveDirection);
+        stateTimer = System.currentTimeMillis();
+        state = MOVING;
     }
 
-    public int getNextOpenSlot(){
-
-        for(int i=0;i<3;i++){
-
-            if(!slotFilled[i]){
-                return i+1;
-            }
-        }
-
-        return -1;
-    }
-
-    public void markSlotFilled(int slot){
-
-        if(slot>=1 && slot<=3){
-            slotFilled[slot-1] = true;
-        }
-    }
-
-    public void clearSlot(int slot){
-
-        if(slot>=1 && slot<=3){
-            slotFilled[slot-1] = false;
-        }
-    }
-
-    public void update(){
-
+    public void update() {
         long now = System.currentTimeMillis();
-        double dt = (now-lastTime)/1000.0;
 
-        lastTime = now;
+        switch (state) {
+            case MOVING:
+                if (now - stateTimer >= MOVE_TIME_MS) {
+                    motor.setPower(-BRAKE_POWER * moveDirection);
+                    stateTimer = now;
+                    state = BRAKING;
+                }
+                break;
 
-        if(dt<=0) dt = 0.01;
+            case BRAKING:
+                if (now - stateTimer >= BRAKE_TIME_MS) {
+                    motor.setPower(0);
+                    currentSlot = targetSlot;
+                    state = IDLE;
+                }
+                break;
 
-        int current = motor.getCurrentPosition();
-
-        double error = targetPos-current;
-
-        integral += error*dt;
-
-        double derivative = (error-lastError)/dt;
-
-        lastError = error;
-
-        double output =
-                (kP*error)+
-                        (kI*integral)+
-                        (kD*derivative);
-
-        output = clamp(output,-MAX_POWER,MAX_POWER);
-
-        motor.setPower(output);
+            case IDLE:
+            default:
+                break;
+        }
     }
 
-    public boolean atTarget(){
+    public boolean atTarget() {
+        return state == IDLE;
+    }
 
-        return Math.abs(targetPos - motor.getCurrentPosition()) < 6;
+    public boolean getActive() {
+        return state != IDLE;
+    }
+
+    public int getCurrentSlot() {
+        return currentSlot;
     }
 
     public int getCurrentPosition() {
         return motor.getCurrentPosition();
     }
 
+    public int getTargetPosition() {
+        return targetSlot;
+    }
+
+    public String getMode() {
+        return motor.getMode().toString();
+    }
+
+    public int getNextOpenSlot() {
+        for (int i = 0; i < 3; i++) {
+            if (!slotFilled[i]) return i + 1;
+        }
+        return -1;
+    }
+
+    public void markSlotFilled(int slot) {
+        if (slot >= 1 && slot <= 3) slotFilled[slot - 1] = true;
+    }
+
+    public void clearSlot(int slot) {
+        if (slot >= 1 && slot <= 3) slotFilled[slot - 1] = false;
+    }
+
     @Override
-    public void stop(){
-
+    public void stop() {
         motor.setPower(0);
+        state = IDLE;
     }
 
-    private int mod(int x,int m){
-
+    private int mod(int x, int m) {
         return (x % m + m) % m;
-    }
-
-    private double clamp(double val,double min,double max){
-
-        return Math.max(min,Math.min(max,val));
     }
 }
