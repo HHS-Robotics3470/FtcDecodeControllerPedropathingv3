@@ -63,19 +63,19 @@ public class TeleOPRed extends OpMode {
         if (gamepad1.dpad_up && !prevDpadUp) lifts.liftsToggle();
         prevDpadUp = gamepad1.dpad_up;
 
-        // ===== MANUAL SPINDEXER ROTATION (A/B/X) =====
+        // ===== MANUAL SPINDEXER ROTATION G2 (A/B/X) =====
         if (gamepad2.a) rotateToSlot(1);
         if (gamepad2.b) rotateToSlot(2);
         if (gamepad2.x) rotateToSlot(3);
 
-        // ===== DPAD SPINDEXER ROTATION (rising edge) =====
-        if (gamepad2.dpad_right && !prevDpadRight) rotateToSlot(1);
-        if (gamepad2.dpad_left  && !prevDpadLeft)  rotateToSlot(2);
-        if (gamepad2.dpad_down  && !prevDpadDown)  rotateToSlot(3);
+        // ===== DPAD SPINDEXER ROTATION G1 (rising edge) =====
+        if (gamepad1.dpad_right && !prevDpadRight) rotateToSlot(1);
+        if (gamepad1.dpad_left  && !prevDpadLeft)  rotateToSlot(2);
+        if (gamepad1.dpad_down  && !prevDpadDown)  rotateToSlot(3);
 
-        prevDpadRight = gamepad2.dpad_right;
-        prevDpadLeft  = gamepad2.dpad_left;
-        prevDpadDown  = gamepad2.dpad_down;
+        prevDpadRight = gamepad1.dpad_right;
+        prevDpadLeft  = gamepad1.dpad_left;
+        prevDpadDown  = gamepad1.dpad_down;
 
         // ===== SHOOTING =====
         if (shootCase == -1) {
@@ -91,9 +91,14 @@ public class TeleOPRed extends OpMode {
         spindexer.update();
 
         // ===== FLYWHEEL CONTROL =====
-        if (gamepad2.right_trigger > 0.1) shooter.enableFlywheel();
-        else if (gamepad2.left_trigger > 0.1) shooter.disableFlywheel();
+        if (gamepad1.right_trigger > 0.1) shooter.enableFlywheel();
+        else if (gamepad1.left_trigger > 0.1) shooter.disableFlywheel();
         shooter.updateFlywheel();
+
+        // ===== KICKER =====
+        if (shootCase == -1){
+            if (gamepad1.y) forceShoot();
+        }
 
         // ===== TELEMETRY =====
         telemetry.addData("Slots", slotOccupied[0] + "," + slotOccupied[1] + "," + slotOccupied[2]);
@@ -111,6 +116,11 @@ public class TeleOPRed extends OpMode {
         return -1;
     }
 
+    private void forceShoot(){
+        shootCase = 0;
+        shootTimer = System.currentTimeMillis();
+        singleShot = true;
+    }
     private void rotateToSlot(int slot) {
         if (slot >= 1 && slot <= 3) {
             rapidNextIndex = slot - 1;
