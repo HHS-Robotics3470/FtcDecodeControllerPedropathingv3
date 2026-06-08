@@ -10,7 +10,7 @@ public class Spindexer implements Subsystems {
 
     private DcMotorEx motor;
 
-    public static double MOVE_POWER = 0.1;
+    public static double MOVE_POWER = 1.0;
     public static double BRAKE_POWER = 0.5; // prevents overshooting
     public static long   MOVE_TIME_MS = 150;
     public static long   BRAKE_TIME_MS = 50;
