@@ -5,14 +5,14 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 
 @Configurable
-public class Lifts implements Subsystems {
+    public class Lifts implements Subsystems {
 
-    private Servo lLift;
-    private Servo rLift;
+        private Servo lLift;
+        private Servo rLift;
 
     public static double LEFT_DOWN  = 0.0;
-    public static double LEFT_UP    = 0.4;
-    public static double RIGHT_DOWN = 0.4;
+    public static double LEFT_UP    = 0.3;
+    public static double RIGHT_DOWN = 0.3;
     public static double RIGHT_UP   = 0.0;
 
     private boolean isDown = true;
